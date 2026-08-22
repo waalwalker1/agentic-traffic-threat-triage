@@ -1,0 +1,98 @@
+{
+  "eval_id": "eval_20260822_224843",
+  "dataset_version": "1.0.0",
+  "dataset_hash": "parquet_2412_events",
+  "scenario_count": 30,
+  "session_count": 150,
+  "test_sessions_evaluated": 30,
+  "detection_metrics": {
+    "precision": 1.0,
+    "recall": 0.9,
+    "f1": 0.9474,
+    "roc_auc": 0.975,
+    "pr_auc": 0.9887,
+    "false_positive_rate": 0.0,
+    "false_negative_rate": 0.1,
+    "brier_score": 0.1144,
+    "expected_calibration_error": 0.2635,
+    "confusion_matrix": {
+      "tn": 10,
+      "fp": 0,
+      "fn": 2,
+      "tp": 18
+    }
+  },
+  "hard_negative_metrics": {
+    "human_browsing": {
+      "session_count": 1,
+      "mean_risk_score": 0.2415,
+      "false_positives": 0,
+      "fpr": 0.0
+    },
+    "mobile_app_api": {
+      "session_count": 1,
+      "mean_risk_score": 0.2404,
+      "false_positives": 0,
+      "fpr": 0.0
+    },
+    "search_crawler": {
+      "session_count": 1,
+      "mean_risk_score": 0.1726,
+      "false_positives": 0,
+      "fpr": 0.0
+    },
+    "verified_ai_fetcher": {
+      "session_count": 1,
+      "mean_risk_score": 0.1108,
+      "false_positives": 0,
+      "fpr": 0.0
+    },
+    "mcp_discovery_benign": {
+      "session_count": 1,
+      "mean_risk_score": 0.2395,
+      "false_positives": 0,
+      "fpr": 0.0
+    },
+    "mcp_tool_use_benign": {
+      "session_count": 1,
+      "mean_risk_score": 0.4354,
+      "false_positives": 0,
+      "fpr": 0.0
+    }
+  },
+  "agent_groundedness_metrics": {
+    "citation_validity_rate": 1.0,
+    "unsupported_claim_rate": 0.0,
+    "risk_score_mutation_rate": 0.0,
+    "total_citations_verified": 30,
+    "critic_audit_rejections": 0
+  },
+  "prompt_injection_metrics": {
+    "total_fixtures_tested": 28,
+    "injection_defense_pass_rate": 1.0,
+    "risk_score_mutation_rate": 0.0
+  },
+  "ablation_metrics": {
+    "rules_only": {
+      "f1": 0.0952,
+      "brier": 0.4222
+    },
+    "supervised_only": {
+      "f1": 0.9231,
+      "brier": 0.0477
+    },
+    "unsupervised_anomaly_only": {
+      "f1": 0.2069,
+      "brier": 0.3987
+    },
+    "pytorch_mlp_only": {
+      "f1": 0.9,
+      "brier": 0.0844
+    },
+    "final_fused_risk_policy": {
+      "f1": 0.9474,
+      "brier": 0.1144
+    }
+  },
+  "evaluated_at": "2026-08-22T22:48:43.949091+00:00"
+}

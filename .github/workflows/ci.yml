@@ -1,0 +1,100 @@
+name: CI & Release Quality Gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  python-quality-and-tests:
+    name: Python Quality, Typing & Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: uv sync --extra dev --extra cloud
+
+      - name: Code formatting & linting (Ruff)
+        run: |
+          uv run ruff format --check src tests tools evals apps
+          uv run ruff check src tests tools evals apps
+
+      - name: Static type checking (mypy)
+        run: uv run mypy src tools evals
+
+      - name: Unit & Protocol Tests
+        run: uv run pytest tests/unit tests/protocol --cov=src --cov-report=term-missing
+
+      - name: Security & Defensive Boundary Tests
+        run: uv run pytest tests/security
+
+      - name: Integration Tests
+        run: uv run pytest tests/integration
+
+  frontend-quality:
+    name: Frontend Quality & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript Typecheck
+        run: npm run typecheck
+
+      - name: Production Build
+        run: npm run build
+
+  benchmark-and-audits:
+    name: Benchmark Evaluations & Normalization Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: uv sync --extra dev --extra cloud
+
+      - name: Generate synthetic dataset & train baselines
+        run: |
+          uv run python -m tools.synthetic_traffic.generator --seed 42 --output-dir data/fixtures --sample-dir data/samples
+          uv run python -m src.traffic_triage.detection.train --data-dir data/fixtures --output-dir artifacts/model_cards
+
+      - name: Execute Full Benchmark Evaluations
+        run: uv run python -m evals.runners.benchmark --data-dir data/fixtures --output-dir artifacts/evals/latest
+
+      - name: Defensive Boundary & Public Normalization Audit
+        run: |
+          uv run python scripts/check_defensive_boundary.py
+          uv run python scripts/check_public_normalization.py
