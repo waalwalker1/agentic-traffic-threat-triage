@@ -2,7 +2,7 @@
 
 > Defensive traffic-intelligence research platform combining deterministic features, calibrated detection models, agent identity/intent analysis, MCP activity signals, and evidence-grounded multi-agent SOC triage.
 
-[![CI & Quality Gates](https://github.com/example/agentic-traffic-threat-triage/actions/workflows/ci.yml/badge.svg)](https://github.com/example/agentic-traffic-threat-triage/actions)
+[![CI & Quality Gates](https://github.com/waalwalker1/agentic-traffic-threat-triage/actions/workflows/ci.yml/badge.svg)](https://github.com/waalwalker1/agentic-traffic-threat-triage/actions)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -123,7 +123,7 @@ The platform enforces a strict architectural boundary between the **Deterministi
 ### 2. Installation
 ```bash
 # Clone the repository
-git clone https://github.com/example/agentic-traffic-threat-triage.git
+git clone https://github.com/waalwalker1/agentic-traffic-threat-triage.git
 cd agentic-traffic-threat-triage
 
 # Install Python and Node dependencies
