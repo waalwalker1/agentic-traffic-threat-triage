@@ -191,21 +191,8 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Start Backend API Service
-        run: |
-          uv run uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 &
-          echo "Waiting for API service to become healthy..."
-          for i in $(seq 1 30); do
-            if curl -s http://127.0.0.1:8000/health > /dev/null; then
-              echo "API is ready on http://127.0.0.1:8000"
-              break
-            fi
-            sleep 1
-          done
-          curl -f http://127.0.0.1:8000/health
-
       - name: Run Playwright E2E Tests
-        run: VITE_API_BASE=http://127.0.0.1:8000 npm run test:e2e
+        run: npm run test:e2e
         env:
           VITE_API_BASE: "http://127.0.0.1:8000"
 
