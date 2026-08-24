@@ -1,24 +1,15 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Shield,
   Activity,
   AlertTriangle,
-  FileText,
   Search,
   CheckCircle2,
-  XCircle,
-  Clock,
   Layers,
   BarChart3,
-  Cpu,
-  Lock,
-  Eye,
-  RefreshCw,
-  Send,
   Sparkles,
   Database,
-  ExternalLink,
 } from 'lucide-react';
 
 const API_BASE = 'http://localhost:8000';
@@ -28,17 +19,10 @@ export function App() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [dispositionNotes, setDispositionNotes] = useState('');
-  const [filterRisk, setFilterRisk] = useState<string>('ALL');
 
   const queryClient = useQueryClient();
 
   // Queries
-  const healthQuery = useQuery({
-    queryKey: ['health'],
-    queryFn: () => fetch(`${API_BASE}/health`).then((r) => r.json()),
-    refetchInterval: 10000,
-  });
-
   const readyQuery = useQuery({
     queryKey: ['ready'],
     queryFn: () => fetch(`${API_BASE}/ready`).then((r) => r.json()),
