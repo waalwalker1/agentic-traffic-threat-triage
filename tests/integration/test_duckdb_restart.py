@@ -160,7 +160,7 @@ def test_duckdb_restart_durability():
         ev_read = store2.get_evidence_for_session("sess_durability_001")
         assert len(ev_read) == 1
         assert ev_read[0]["evidence_id"] == "E-VOL-sess_durability_001-01"
-        assert ev_read[0]["observed_value"] == 15.0
+        assert float(ev_read[0]["observed_value"]) == 15.0
 
         inc_read = store2.get_incident("inc_durability_001")
         assert inc_read is not None
