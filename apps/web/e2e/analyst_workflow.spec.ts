@@ -30,7 +30,7 @@ test.describe('SOC Analyst End-to-End Workflow', () => {
       synthetic_ground_truth: 'threat',
     };
 
-    const ingestRes = await request.post('http://localhost:8000/api/v1/ingest', {
+    const ingestRes = await request.post('http://127.0.0.1:8000/api/v1/ingest', {
       data: { events: [seedEvent] },
     });
     expect(ingestRes.ok()).toBeTruthy();

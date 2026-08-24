@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: 'http://127.0.0.1:3000',
     trace: 'on-first-retry',
   },
   projects: [
@@ -19,14 +19,14 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'uv run uvicorn apps.api.main:app --port 8000',
-      port: 8000,
+      command: 'uv run uvicorn apps.api.main:app --host 0.0.0.0 --port 8000',
+      url: 'http://127.0.0.1:8000/ready',
       timeout: 120000,
       reuseExistingServer: !process.env.CI,
     },
     {
-      command: 'npm run dev',
-      port: 3000,
+      command: 'npm run dev -- --host 0.0.0.0 --port 3000',
+      url: 'http://127.0.0.1:3000',
       timeout: 120000,
       reuseExistingServer: !process.env.CI,
     },
