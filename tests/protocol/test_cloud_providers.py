@@ -1,6 +1,7 @@
 """Mocked contract tests for Vertex AI and AWS Bedrock cloud adapters."""
 
 from unittest.mock import MagicMock, patch
+
 import pytest
 
 from src.traffic_triage.agents.role_schemas import IdentityAgentOutput
@@ -22,7 +23,10 @@ async def test_vertex_provider_contract_mocked():
     mock_response.text = '{"identity_assessment": "Verified Ed25519 fixture", "identity_confidence": 0.95, "cited_evidence_ids": ["E-ID-01"], "ambiguities": []}'
     mock_client.models.generate_content.return_value = mock_response
 
-    with patch.dict("os.environ", {"GCP_PROJECT_ID": "test-project", "GOOGLE_APPLICATION_CREDENTIALS": "/path/key.json"}):
+    with patch.dict(
+        "os.environ",
+        {"GCP_PROJECT_ID": "test-project", "GOOGLE_APPLICATION_CREDENTIALS": "/path/key.json"},
+    ):
         with patch("google.genai.Client", return_value=mock_client):
             provider = VertexAIProvider(project_id="test-project")
             # In a mocked context where google.genai is mock-injected

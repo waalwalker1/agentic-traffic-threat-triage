@@ -41,7 +41,14 @@ class OutputSecurityValidator:
                 violations.append(
                     f"UNKNOWN_EVIDENCE_CITATION: Cited ID '{cid}' does not exist in evidence bundle"
                 )
-            elif bundle.session_id and f"-{bundle.session_id}-" not in cid and not cid.endswith(f"-{bundle.session_id}") and not cid.startswith(f"E-VOL-{bundle.session_id}") and not cid.startswith(f"E-ID-{bundle.session_id}") and not cid.startswith(f"E-MCP-{bundle.session_id}"):
+            elif (
+                bundle.session_id
+                and f"-{bundle.session_id}-" not in cid
+                and not cid.endswith(f"-{bundle.session_id}")
+                and not cid.startswith(f"E-VOL-{bundle.session_id}")
+                and not cid.startswith(f"E-ID-{bundle.session_id}")
+                and not cid.startswith(f"E-MCP-{bundle.session_id}")
+            ):
                 # Check cross-session citation if another session id is explicitly embedded
                 if "sess_" in cid and bundle.session_id not in cid:
                     violations.append(
@@ -71,12 +78,17 @@ class OutputSecurityValidator:
                         )
                 for na in gf.numeric_assertions:
                     matched_ev = None
-                    if na.verified_against_evidence_id and na.verified_against_evidence_id in ev_map:
+                    if (
+                        na.verified_against_evidence_id
+                        and na.verified_against_evidence_id in ev_map
+                    ):
                         matched_ev = ev_map[na.verified_against_evidence_id]
                     elif na.metric_name in feature_ev_map:
                         matched_ev = feature_ev_map[na.metric_name]
 
-                    if matched_ev is not None and isinstance(matched_ev.observed_value, (int, float)):
+                    if matched_ev is not None and isinstance(
+                        matched_ev.observed_value, (int, float)
+                    ):
                         obs = float(matched_ev.observed_value)
                         tol = max(na.tolerance * max(abs(obs), 1.0), 0.01)
                         if abs(na.claimed_value - obs) > tol:
@@ -89,7 +101,11 @@ class OutputSecurityValidator:
                         )
 
             # Check for ungrounded extreme speculative claims
-            if "exfiltrated 500gb" in gf.finding.lower() or "secrets" in gf.finding.lower() or "proprietary" in gf.finding.lower():
+            if (
+                "exfiltrated 500gb" in gf.finding.lower()
+                or "secrets" in gf.finding.lower()
+                or "proprietary" in gf.finding.lower()
+            ):
                 violations.append(
                     f"UNMARKED_FACTUAL_SPECULATION: Finding '{gf.finding[:50]}' presents speculative conclusion as established fact"
                 )
@@ -103,22 +119,41 @@ class OutputSecurityValidator:
             )
 
         for act in brief.recommended_analyst_actions:
-            if re.search(r"(SYSTEM OVERRIDE|IGNORE PREVIOUS|DROP DATABASE|DELETE ALL|Set all threat scores to 0)", act, re.IGNORECASE):
+            if re.search(
+                r"(SYSTEM OVERRIDE|IGNORE PREVIOUS|DROP DATABASE|DELETE ALL|Set all threat scores to 0)",
+                act,
+                re.IGNORECASE,
+            ):
                 violations.append(
                     f"PROMPT_INJECTED_RECOMMENDATION: Found adversarial command override in recommendation: '{act}'"
                 )
 
         # 7. Identity & MCP consistency against evidence bundle
         id_ev = next((ev for ev in bundle.evidence_items if ev.kind == "identity"), None)
-        if id_ev and id_ev.feature_name == "identity_claim_proof_mismatch" and id_ev.observed_value == 1.0:
-            if "verified human" in brief.identity_assessment.lower() or "verified administrator" in brief.identity_assessment.lower():
+        if (
+            id_ev
+            and id_ev.feature_name == "identity_claim_proof_mismatch"
+            and id_ev.observed_value == 1.0
+        ):
+            if (
+                "verified human" in brief.identity_assessment.lower()
+                or "verified administrator" in brief.identity_assessment.lower()
+            ):
                 violations.append(
                     "UNSUPPORTED_IDENTITY_CONCLUSION: Brief concludes verified actor but evidence shows cryptographic proof mismatch"
                 )
 
         mcp_ev = next((ev for ev in bundle.evidence_items if ev.kind == "mcp_activity"), None)
-        if mcp_ev and "abnormal" in mcp_ev.feature_name and isinstance(mcp_ev.observed_value, (int, float)) and mcp_ev.observed_value > 0:
-            if brief.mcp_activity_assessment and ("clean nominal" in brief.mcp_activity_assessment.lower() or "nominal initialization" in brief.mcp_activity_assessment.lower()):
+        if (
+            mcp_ev
+            and "abnormal" in mcp_ev.feature_name
+            and isinstance(mcp_ev.observed_value, (int, float))
+            and mcp_ev.observed_value > 0
+        ):
+            if brief.mcp_activity_assessment and (
+                "clean nominal" in brief.mcp_activity_assessment.lower()
+                or "nominal initialization" in brief.mcp_activity_assessment.lower()
+            ):
                 violations.append(
                     "FALSE_MCP_STATEMENT: Brief asserts clean MCP nominal initialization but evidence contains abnormal sequence transitions"
                 )
@@ -126,7 +161,11 @@ class OutputSecurityValidator:
         # 8. Contradictory findings check
         findings_text = " ".join(brief.key_findings).lower()
         vol_ev = next((ev for ev in bundle.evidence_items if ev.kind == "volumetric"), None)
-        if vol_ev and isinstance(vol_ev.observed_value, (int, float)) and vol_ev.observed_value > 20.0:
+        if (
+            vol_ev
+            and isinstance(vol_ev.observed_value, (int, float))
+            and vol_ev.observed_value > 20.0
+        ):
             if "0 requests" in findings_text or "entirely nominal" in findings_text:
                 violations.append(
                     "CONTRADICTORY_FINDING: Brief asserts nominal/0 requests while volumetric evidence proves high request burst"

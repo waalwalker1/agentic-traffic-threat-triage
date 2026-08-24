@@ -1,7 +1,7 @@
 """Integration test for versioned ModelBundle persistence, verification, and runtime execution."""
 
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -9,7 +9,7 @@ from apps.api.main import app, container
 from src.traffic_triage.detection.model_bundle import ModelBundleLoader
 from src.traffic_triage.detection.rules import RuleBaselineDetector
 from src.traffic_triage.detection.train import run_training_pipeline
-from src.traffic_triage.features.extractor import FEATURE_NAMES, SessionFeatureVector
+from src.traffic_triage.features.extractor import SessionFeatureVector
 from src.traffic_triage.risk.fusion import RiskPolicy
 
 

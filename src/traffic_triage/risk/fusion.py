@@ -69,7 +69,9 @@ class RiskPolicy:
             + self.weights.pytorch * pytorch_score
         )
         raw_model = float(min(max(raw_model, 0.0), 1.0))
-        calibrated_prob = calibrated_probability if calibrated_probability is not None else raw_model
+        calibrated_prob = (
+            calibrated_probability if calibrated_probability is not None else raw_model
+        )
 
         # Base operational fusion
         base_risk = (
@@ -113,7 +115,7 @@ class RiskPolicy:
         else:
             band = RiskBand.LOW
 
-        all_reasons = sorted(list(set(reason_codes + override_codes)))
+        all_reasons = sorted(set(reason_codes + override_codes))
 
         return DetectionResult(
             session_id=session_id,

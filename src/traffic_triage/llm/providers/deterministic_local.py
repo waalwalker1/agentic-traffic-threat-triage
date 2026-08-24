@@ -195,7 +195,11 @@ class DeterministicLocalProvider:
             # Build grounded findings with real numeric assertions when available
             for idx, ft in enumerate(findings_text):
                 num_asserts: list[NumericAssertion] = []
-                assigned_evs = vol_evs if (idx == 1 and vol_evs) else (id_evs if (idx == 0 and id_evs) else unique_ev_ids[:2])
+                assigned_evs = (
+                    vol_evs
+                    if (idx == 1 and vol_evs)
+                    else (id_evs if (idx == 0 and id_evs) else unique_ev_ids[:2])
+                )
                 if not assigned_evs:
                     assigned_evs = unique_ev_ids
 
@@ -238,10 +242,16 @@ class DeterministicLocalProvider:
 
             # Check if text contains fake evidence patterns like E-FAKE
             fake_citations = [ev for ev in unique_ev_ids if "FAKE" in ev or "FORGED" in ev]
-            mutation_detected = "SET_RISK=0" in ctx or "risk_score=0.0" in ctx or "declare risk score 0.0" in ctx
-            injection_detected = "</curated_evidence>" in ctx or "SYSTEM:" in ctx or "IGNORE_EVIDENCE" in ctx
+            mutation_detected = (
+                "SET_RISK=0" in ctx or "risk_score=0.0" in ctx or "declare risk score 0.0" in ctx
+            )
+            injection_detected = (
+                "</curated_evidence>" in ctx or "SYSTEM:" in ctx or "IGNORE_EVIDENCE" in ctx
+            )
 
-            approved = len(fake_citations) == 0 and len(invalid_citations) == 0 and not mutation_detected
+            approved = (
+                len(fake_citations) == 0 and len(invalid_citations) == 0 and not mutation_detected
+            )
             rejected_reasons = []
             if fake_citations:
                 rejected_reasons.append(
@@ -252,7 +262,9 @@ class DeterministicLocalProvider:
                     f"Evidence citations failed format check: {invalid_citations}"
                 )
             if mutation_detected:
-                rejected_reasons.append("Detected attempted score mutation injection in prompt context")
+                rejected_reasons.append(
+                    "Detected attempted score mutation injection in prompt context"
+                )
 
             res = CriticAgentOutput(
                 approved=approved,

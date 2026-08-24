@@ -71,7 +71,11 @@ def sign_payload(payload: str | bytes, private_key_b64: str) -> str:
     if isinstance(payload, str) and len(payload) == 44 and payload.endswith("="):
         try:
             b = base64.b64decode(payload)
-            if len(b) == 32 and not (isinstance(private_key_b64, str) and len(private_key_b64) == 44 and private_key_b64.endswith("=")):
+            if len(b) == 32 and not (
+                isinstance(private_key_b64, str)
+                and len(private_key_b64) == 44
+                and private_key_b64.endswith("=")
+            ):
                 payload, private_key_b64 = private_key_b64, payload
         except Exception:
             pass
@@ -106,7 +110,9 @@ def build_canonical_request_payload(
     timestamp_iso: Any,
 ) -> str:
     """Build deterministic canonical string for signing."""
-    ts_str = timestamp_iso.isoformat() if hasattr(timestamp_iso, "isoformat") else str(timestamp_iso)
+    ts_str = (
+        timestamp_iso.isoformat() if hasattr(timestamp_iso, "isoformat") else str(timestamp_iso)
+    )
     return f"SOURCE={source_id_hash}|ROUTE={route_template}|TIME={ts_str}"
 
 

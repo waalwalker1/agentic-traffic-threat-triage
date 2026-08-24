@@ -3,10 +3,11 @@
 import json
 import logging
 import os
-from pathlib import Path
 import time
-from typing import Any
 import uuid
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -297,9 +298,19 @@ def run_detection(session_id: str) -> DetectionResult:
     else:
         # Explicit untrained / fallback
         rules_res = container.rules_detector.evaluate(fv)
-        iso_score = container.unsupervised_detector.predict_score(fv) if container.unsupervised_detector else 0.5
-        sup_score = container.supervised_classifier.predict_proba(fv) if container.supervised_classifier else 0.5
-        pyt_score = container.pytorch_detector.predict_score(fv) if container.pytorch_detector else 0.5
+        iso_score = (
+            container.unsupervised_detector.predict_score(fv)
+            if container.unsupervised_detector
+            else 0.5
+        )
+        sup_score = (
+            container.supervised_classifier.predict_proba(fv)
+            if container.supervised_classifier
+            else 0.5
+        )
+        pyt_score = (
+            container.pytorch_detector.predict_score(fv) if container.pytorch_detector else 0.5
+        )
 
         det = container.risk_policy.fuse_scores(
             session_id=session_id,
@@ -334,9 +345,19 @@ async def run_triage(session_id: str) -> IncidentBrief:
         det.evidence_ids = [e.evidence_id for e in ev_items]
     else:
         rules_res = container.rules_detector.evaluate(fv)
-        iso_score = container.unsupervised_detector.predict_score(fv) if container.unsupervised_detector else 0.5
-        sup_score = container.supervised_classifier.predict_proba(fv) if container.supervised_classifier else 0.5
-        pyt_score = container.pytorch_detector.predict_score(fv) if container.pytorch_detector else 0.5
+        iso_score = (
+            container.unsupervised_detector.predict_score(fv)
+            if container.unsupervised_detector
+            else 0.5
+        )
+        sup_score = (
+            container.supervised_classifier.predict_proba(fv)
+            if container.supervised_classifier
+            else 0.5
+        )
+        pyt_score = (
+            container.pytorch_detector.predict_score(fv) if container.pytorch_detector else 0.5
+        )
 
         det = container.risk_policy.fuse_scores(
             session_id=session_id,

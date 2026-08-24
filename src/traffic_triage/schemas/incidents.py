@@ -43,11 +43,17 @@ class IntentHypothesis(BaseModel):
 class NumericAssertion(BaseModel):
     """A specific numerical claim made in a brief that must match deterministic evidence."""
 
-    metric_name: str = Field(..., description="Name of feature or evidence metric (e.g. requests_per_second)")
+    metric_name: str = Field(
+        ..., description="Name of feature or evidence metric (e.g. requests_per_second)"
+    )
     claimed_value: float = Field(..., description="Claimed numeric value")
     tolerance: float = Field(default=0.05, description="Relative or absolute matching tolerance")
-    verified_against_evidence_id: str | None = Field(default=None, description="Matched EvidenceItem ID")
-    is_verified: bool = Field(default=False, description="Whether assertion matched deterministic observation")
+    verified_against_evidence_id: str | None = Field(
+        default=None, description="Matched EvidenceItem ID"
+    )
+    is_verified: bool = Field(
+        default=False, description="Whether assertion matched deterministic observation"
+    )
 
 
 class GroundedFinding(BaseModel):
@@ -60,7 +66,9 @@ class GroundedFinding(BaseModel):
     numeric_assertions: list[NumericAssertion] = Field(
         default_factory=list, description="Validated numerical statements"
     )
-    is_factual: bool = Field(default=True, description="True for factual assertions requiring evidence")
+    is_factual: bool = Field(
+        default=True, description="True for factual assertions requiring evidence"
+    )
 
 
 class CriticReview(BaseModel):

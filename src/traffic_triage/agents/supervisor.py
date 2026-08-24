@@ -17,7 +17,6 @@ from src.traffic_triage.schemas.incidents import (
     CriticReview,
     GroundedFinding,
     IncidentBrief,
-    NumericAssertion,
 )
 
 
@@ -149,15 +148,24 @@ class DeterministicSupervisor:
 
         # Construct CriticReview audit record
         has_invalid = len(invalid_citations) > 0
-        approved = critic_out.approved and not has_invalid and not unsupported_claim_detected and not numeric_mismatch
+        approved = (
+            critic_out.approved
+            and not has_invalid
+            and not unsupported_claim_detected
+            and not numeric_mismatch
+        )
 
         rejections = list(critic_out.rejected_reasons)
         if invalid_citations:
-            rejections.append(f"Supervisor rejected invalid evidence citations: {invalid_citations}")
+            rejections.append(
+                f"Supervisor rejected invalid evidence citations: {invalid_citations}"
+            )
         if unsupported_claim_detected:
             rejections.append("Supervisor detected factual claim without valid evidence citation")
         if numeric_mismatch:
-            rejections.append(f"Supervisor detected numeric assertion mismatch ({verified_num}/{total_num} verified)")
+            rejections.append(
+                f"Supervisor detected numeric assertion mismatch ({verified_num}/{total_num} verified)"
+            )
 
         critic_review = CriticReview(
             approved=approved,

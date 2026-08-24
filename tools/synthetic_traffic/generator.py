@@ -4,9 +4,9 @@ Eliminates label-driven generic fallbacks: all behavior derives from explicit de
 
 import argparse
 import json
+import random
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-import random
 from typing import Any
 
 import pyarrow as pa
@@ -21,11 +21,12 @@ from src.traffic_triage.identity.signature import (
 from src.traffic_triage.schemas.events import TrafficEvent
 from tools.synthetic_traffic.scenario_profiles import (
     SCENARIO_PROFILES,
-    ScenarioProfile,
     UnknownScenarioProfileError,
 )
 
-SCENARIO_FAMILIES = {k: {"label": v.ground_truth, "family": v.family_group} for k, v in SCENARIO_PROFILES.items()}
+SCENARIO_FAMILIES = {
+    k: {"label": v.ground_truth, "family": v.family_group} for k, v in SCENARIO_PROFILES.items()
+}
 
 
 class SyntheticCorpusGenerator:
@@ -53,10 +54,13 @@ class SyntheticCorpusGenerator:
         self,
         scenario_id: str,
         session_idx: int,
-        base_time: datetime,
+        base_time: datetime | None = None,
     ) -> list[TrafficEvent]:
         if scenario_id not in SCENARIO_PROFILES:
             raise UnknownScenarioProfileError(f"Unknown scenario family: '{scenario_id}'")
+
+        if base_time is None:
+            base_time = datetime(2026, 1, 15, 8, 0, 0, tzinfo=UTC)
 
         profile = SCENARIO_PROFILES[scenario_id]
         session_id = f"sess_{scenario_id}_{session_idx:03d}"
@@ -109,13 +113,31 @@ class SyntheticCorpusGenerator:
         for i in range(event_count):
             # Calculate interarrival delay based on pattern
             if profile.interarrival_pattern == "low_and_slow":
-                dt_ms = max(5000.0, self.rng.gauss(profile.interarrival_mean_ms, profile.interarrival_jitter_ms))
+                dt_ms = max(
+                    5000.0,
+                    self.rng.gauss(profile.interarrival_mean_ms, profile.interarrival_jitter_ms),
+                )
             elif profile.interarrival_pattern == "bursty_scrape":
-                dt_ms = max(5.0, self.rng.gauss(profile.interarrival_mean_ms, profile.interarrival_jitter_ms))
+                dt_ms = max(
+                    5.0,
+                    self.rng.gauss(profile.interarrival_mean_ms, profile.interarrival_jitter_ms),
+                )
             elif profile.interarrival_pattern == "periodic_fast":
-                dt_ms = max(20.0, profile.interarrival_mean_ms + self.rng.uniform(-profile.interarrival_jitter_ms, profile.interarrival_jitter_ms))
+                dt_ms = max(
+                    20.0,
+                    profile.interarrival_mean_ms
+                    + self.rng.uniform(
+                        -profile.interarrival_jitter_ms, profile.interarrival_jitter_ms
+                    ),
+                )
             elif profile.interarrival_pattern == "constant_batch":
-                dt_ms = max(100.0, profile.interarrival_mean_ms + self.rng.uniform(-profile.interarrival_jitter_ms, profile.interarrival_jitter_ms))
+                dt_ms = max(
+                    100.0,
+                    profile.interarrival_mean_ms
+                    + self.rng.uniform(
+                        -profile.interarrival_jitter_ms, profile.interarrival_jitter_ms
+                    ),
+                )
             else:  # human_random
                 dt_ms = max(100.0, self.rng.expovariate(1.0 / profile.interarrival_mean_ms))
 

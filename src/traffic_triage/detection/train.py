@@ -1,11 +1,10 @@
 """Reproducible training and model evaluation pipeline."""
 
 import argparse
-from datetime import UTC, datetime
 import json
+from datetime import UTC, datetime
 from pathlib import Path
-import sys
-from typing import Any, cast
+from typing import Any
 
 import joblib
 import numpy as np
@@ -155,7 +154,9 @@ def run_training_pipeline(data_dir: str, output_dir: str) -> dict[str, Any]:
 
     artifact_hashes = {
         "supervised.joblib": compute_file_sha256(current_bundle_dir / "supervised.joblib"),
-        "isolation_forest.joblib": compute_file_sha256(current_bundle_dir / "isolation_forest.joblib"),
+        "isolation_forest.joblib": compute_file_sha256(
+            current_bundle_dir / "isolation_forest.joblib"
+        ),
         "calibrator.joblib": compute_file_sha256(current_bundle_dir / "calibrator.joblib"),
         "pytorch_state.pt": compute_file_sha256(current_bundle_dir / "pytorch_state.pt"),
     }
@@ -181,7 +182,10 @@ def run_training_pipeline(data_dir: str, output_dir: str) -> dict[str, Any]:
         json.dump(manifest.model_dump(mode="json"), f, indent=2)
 
     print(f"ModelBundle successfully saved to: {current_bundle_dir}", flush=True)
-    print(f"  Brier Score: {calib_metrics.brier_score:.4f}, ECE: {calib_metrics.expected_calibration_error:.4f}", flush=True)
+    print(
+        f"  Brier Score: {calib_metrics.brier_score:.4f}, ECE: {calib_metrics.expected_calibration_error:.4f}",
+        flush=True,
+    )
 
     return {
         "dataset_sha256": dataset_sha256,

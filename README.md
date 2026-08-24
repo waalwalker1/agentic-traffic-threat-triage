@@ -160,11 +160,12 @@ Visit the dashboard at `http://localhost:5173`.
 
 ## Documentation Links
 
-- [Architecture & Invariants](docs/ARCHITECTURE.md)
-- [Evidence Bundle Architecture](docs/EVALUATION.md)
-- [Dataset Card](data/DATASET_CARD.md)
+- [System Architecture](docs/architecture/SYSTEM.md)
+- [Agent Boundaries & Evidence Invariants](docs/architecture/AGENT_BOUNDARIES.md)
+- [Evaluation Methodology](docs/evaluation/METHODOLOGY.md)
+- [Dataset Card](docs/DATASET_CARD.md)
 - [Integration Status Matrix](docs/INTEGRATION_STATUS.md)
-- [Security & Threat Model](docs/SECURITY.md)
+- [Security & Threat Model](docs/security/THREAT_MODEL.md)
 - [Release Validation Report](docs/RELEASE_VALIDATION.md)
 
 ---

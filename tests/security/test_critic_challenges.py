@@ -12,6 +12,7 @@ def test_critic_challenge_suite_enforcement():
     challenge_file = Path("evals/fixtures/critic_challenges.json")
     if not challenge_file.exists():
         from evals.fixtures.generate_critic_challenges import main
+
         main()
 
     with open(challenge_file) as f:

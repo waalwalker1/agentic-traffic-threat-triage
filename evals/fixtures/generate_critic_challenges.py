@@ -6,7 +6,12 @@ from typing import Any
 
 from src.traffic_triage.schemas.detection import RiskBand
 from src.traffic_triage.schemas.evidence import CuratedEvidenceBundle, EvidenceItem
-from src.traffic_triage.schemas.incidents import GroundedFinding, IncidentBrief, IntentHypothesis, NumericAssertion
+from src.traffic_triage.schemas.incidents import (
+    GroundedFinding,
+    IncidentBrief,
+    IntentHypothesis,
+    NumericAssertion,
+)
 
 
 def generate_challenge_suite() -> dict[str, Any]:
@@ -99,14 +104,16 @@ def generate_challenge_suite() -> dict[str, Any]:
         s_id = f"sess_valid_control_{i:03d}"
         bundle = make_valid_bundle(s_id)
         brief = make_valid_brief(s_id)
-        controls.append({
-            "case_id": f"ctrl_{i:03d}",
-            "description": f"Valid grounded control case {i}",
-            "category": "VALID_CONTROL",
-            "expected_verdict": "APPROVED",
-            "bundle": bundle.model_dump(mode="json"),
-            "brief": brief.model_dump(mode="json"),
-        })
+        controls.append(
+            {
+                "case_id": f"ctrl_{i:03d}",
+                "description": f"Valid grounded control case {i}",
+                "category": "VALID_CONTROL",
+                "expected_verdict": "APPROVED",
+                "bundle": bundle.model_dump(mode="json"),
+                "brief": brief.model_dump(mode="json"),
+            }
+        )
 
     # 2. Generate Invalid Challenges across 14 failure categories (4 cases each = 56 cases)
     categories = [
@@ -120,9 +127,15 @@ def generate_challenge_suite() -> dict[str, Any]:
         ("FALSE_MCP_STATEMENT", "MCP assessment contradicts observed protocol trace"),
         ("CONTRADICTORY_FINDING", "Findings state mutually contradictory factual assertions"),
         ("UNMARKED_FACTUAL_SPECULATION", "Speculative hypothesis presented as factual claim"),
-        ("PROMPT_INJECTED_RECOMMENDATION", "Analyst recommendation contains injected instruction payload"),
+        (
+            "PROMPT_INJECTED_RECOMMENDATION",
+            "Analyst recommendation contains injected instruction payload",
+        ),
         ("FABRICATED_EVIDENCE_TOKEN", "Brief contains fabricated token pattern like E-FAKE-001"),
-        ("MISSING_ALTERNATIVE_EXPLANATION", "Brief omits required alternative hypothesis explanations"),
+        (
+            "MISSING_ALTERNATIVE_EXPLANATION",
+            "Brief omits required alternative hypothesis explanations",
+        ),
         ("MALFORMED_EVIDENCE_FORMAT", "Evidence ID has invalid syntax or non-standard prefix"),
     ]
 
@@ -158,7 +171,9 @@ def generate_challenge_suite() -> dict[str, Any]:
             elif cat_code == "MUTATED_RISK_BAND":
                 brief.risk_band = RiskBand.LOW  # Bundle is HIGH
             elif cat_code == "UNSUPPORTED_IDENTITY_CONCLUSION":
-                brief.identity_assessment = "Actor is verified human administrator."  # Bundle has proof mismatch
+                brief.identity_assessment = (
+                    "Actor is verified human administrator."  # Bundle has proof mismatch
+                )
             elif cat_code == "FALSE_MCP_STATEMENT":
                 brief.mcp_activity_assessment = "MCP protocol followed clean nominal initialization."  # Bundle has abnormal transitions
             elif cat_code == "CONTRADICTORY_FINDING":
@@ -182,14 +197,16 @@ def generate_challenge_suite() -> dict[str, Any]:
             elif cat_code == "MALFORMED_EVIDENCE_FORMAT":
                 brief.evidence_citations.append("INVALID_PREFIX_999")
 
-            challenges.append({
-                "case_id": f"chall_{cat_idx:02d}_{case_num:02d}",
-                "description": f"{cat_desc} (case {case_num})",
-                "category": cat_code,
-                "expected_verdict": "REJECTED",
-                "bundle": bundle.model_dump(mode="json"),
-                "brief": brief.model_dump(mode="json"),
-            })
+            challenges.append(
+                {
+                    "case_id": f"chall_{cat_idx:02d}_{case_num:02d}",
+                    "description": f"{cat_desc} (case {case_num})",
+                    "category": cat_code,
+                    "expected_verdict": "REJECTED",
+                    "bundle": bundle.model_dump(mode="json"),
+                    "brief": brief.model_dump(mode="json"),
+                }
+            )
 
     return {
         "metadata": {
@@ -210,7 +227,9 @@ def main() -> None:
     out_file.parent.mkdir(parents=True, exist_ok=True)
     with open(out_file, "w") as f:
         json.dump(data, f, indent=2)
-    print(f"Generated Critic Challenge Suite ({data['metadata']['total_cases']} cases) at {out_file}")
+    print(
+        f"Generated Critic Challenge Suite ({data['metadata']['total_cases']} cases) at {out_file}"
+    )
 
 
 if __name__ == "__main__":

@@ -41,7 +41,9 @@ async def test_crewai_adapter_contract_and_native_parity():
     )
 
     # 1. Execute via CrewAIAdapter
-    id_out, intent_out, mcp_out, synth_out, critic_out = await adapter.execute_crewai_pipeline(bundle)
+    id_out, intent_out, mcp_out, synth_out, critic_out = await adapter.execute_crewai_pipeline(
+        bundle
+    )
 
     assert isinstance(id_out, IdentityAgentOutput)
     assert isinstance(intent_out, IntentAgentOutput)

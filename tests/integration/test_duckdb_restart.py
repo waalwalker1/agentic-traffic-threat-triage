@@ -1,8 +1,8 @@
 """Integration test verifying DuckDB analytical persistence and restart durability."""
 
+import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
-import tempfile
 
 from src.traffic_triage.features.extractor import SessionFeatureVector
 from src.traffic_triage.persistence.duckdb_store import DuckDBStore

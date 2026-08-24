@@ -1,15 +1,14 @@
 """ModelBundle container and safe cryptographic artifact loader."""
 
-from dataclasses import dataclass
 import hashlib
 import json
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import joblib
 import numpy as np
-from pydantic import BaseModel, Field
 import torch
+from pydantic import BaseModel, Field
 
 from src.traffic_triage.detection.calibration import ScoreCalibrator
 from src.traffic_triage.detection.pytorch_model import PyTorchThreatDetector
@@ -18,7 +17,7 @@ from src.traffic_triage.detection.supervised import SupervisedThreatClassifier
 from src.traffic_triage.detection.unsupervised import UnsupervisedAnomalyDetector
 from src.traffic_triage.features.extractor import FEATURE_NAMES, SessionFeatureVector
 from src.traffic_triage.risk.fusion import RiskPolicy
-from src.traffic_triage.schemas.detection import DetectionResult, RiskBand
+from src.traffic_triage.schemas.detection import DetectionResult
 
 
 def compute_file_sha256(file_path: Path | str) -> str:
@@ -164,8 +163,16 @@ class ModelBundleLoader:
         pytorch_model.model.load_state_dict(pt_data["model_state_dict"])
         mean_data = pt_data["mean"]
         std_data = pt_data["std"]
-        pytorch_model.mean = mean_data.numpy() if isinstance(mean_data, torch.Tensor) else np.array(mean_data, dtype=np.float32)
-        pytorch_model.std = std_data.numpy() if isinstance(std_data, torch.Tensor) else np.array(std_data, dtype=np.float32)
+        pytorch_model.mean = (
+            mean_data.numpy()
+            if isinstance(mean_data, torch.Tensor)
+            else np.array(mean_data, dtype=np.float32)
+        )
+        pytorch_model.std = (
+            std_data.numpy()
+            if isinstance(std_data, torch.Tensor)
+            else np.array(std_data, dtype=np.float32)
+        )
         pytorch_model.is_trained = True
 
         return ModelBundle(

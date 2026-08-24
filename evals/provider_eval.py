@@ -2,9 +2,8 @@
 
 import argparse
 import asyncio
-from datetime import UTC, datetime
 import json
-from pathlib import Path
+from datetime import UTC, datetime
 from typing import Any
 
 from src.traffic_triage.agents.crew import SOCTriageCrew
@@ -20,7 +19,6 @@ from src.traffic_triage.llm.providers.deterministic_local import DeterministicLo
 from src.traffic_triage.llm.providers.vertex import VertexAIProvider
 from src.traffic_triage.mcp_activity.analyzer import MCPSequenceAnalyzer
 from src.traffic_triage.risk.fusion import RiskPolicy
-from src.traffic_triage.schemas.events import TrafficEvent
 from tools.synthetic_traffic.generator import SyntheticCorpusGenerator
 
 
@@ -41,7 +39,12 @@ async def evaluate_provider(provider_name: str, num_sessions: int = 5) -> dict[s
     supervisor = DeterministicSupervisor(crew)
 
     gen = SyntheticCorpusGenerator(seed=42)
-    scenarios = ["human_browsing", "catalog_scraping_high_volume", "mcp_normal_workflow", "identity_mismatch"]
+    scenarios = [
+        "human_browsing",
+        "catalog_scraping_high_volume",
+        "mcp_normal_workflow",
+        "identity_mismatch",
+    ]
 
     extractor = FeatureExtractor()
     id_eval = IdentityEvaluator()
@@ -68,21 +71,27 @@ async def evaluate_provider(provider_name: str, num_sessions: int = 5) -> dict[s
 
         try:
             brief = await supervisor.execute_triage(c_bundle, det)
-            results.append({
-                "scenario": sc,
-                "session_id": sid,
-                "status": "SUCCESS",
-                "risk_score": brief.risk_score,
-                "citations_count": len(brief.evidence_citations),
-                "critic_approved": brief.critic_review.approved if brief.critic_review else True,
-            })
+            results.append(
+                {
+                    "scenario": sc,
+                    "session_id": sid,
+                    "status": "SUCCESS",
+                    "risk_score": brief.risk_score,
+                    "citations_count": len(brief.evidence_citations),
+                    "critic_approved": brief.critic_review.approved
+                    if brief.critic_review
+                    else True,
+                }
+            )
         except Exception as err:
-            results.append({
-                "scenario": sc,
-                "session_id": sid,
-                "status": "FAILED",
-                "error": str(err),
-            })
+            results.append(
+                {
+                    "scenario": sc,
+                    "session_id": sid,
+                    "status": "FAILED",
+                    "error": str(err),
+                }
+            )
 
     return {
         "provider": provider_name,
@@ -95,7 +104,12 @@ async def evaluate_provider(provider_name: str, num_sessions: int = 5) -> dict[s
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Provider evaluation tool")
-    parser.add_argument("--provider", type=str, default="deterministic", choices=["deterministic", "vertex", "bedrock"])
+    parser.add_argument(
+        "--provider",
+        type=str,
+        default="deterministic",
+        choices=["deterministic", "vertex", "bedrock"],
+    )
     parser.add_argument("--sessions", type=int, default=4)
     args = parser.parse_args()
 

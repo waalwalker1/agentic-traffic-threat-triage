@@ -40,13 +40,17 @@ def test_runtime_benchmark_parity_on_held_out_session():
 
         # 4. Assert strict parity across all components
         assert api_result["session_id"] == eval_result.session_id
-        assert api_result["supervised_score"] == pytest.approx(eval_result.supervised_score, abs=1e-4)
+        assert api_result["supervised_score"] == pytest.approx(
+            eval_result.supervised_score, abs=1e-4
+        )
         assert api_result["anomaly_score"] == pytest.approx(eval_result.anomaly_score, abs=1e-4)
         assert api_result["pytorch_score"] == pytest.approx(eval_result.pytorch_score, abs=1e-4)
         assert api_result["raw_model_score"] == pytest.approx(eval_result.raw_model_score, abs=1e-4)
         assert api_result["calibrated_model_probability"] == pytest.approx(
             eval_result.calibrated_model_probability, abs=1e-4
         )
-        assert api_result["policy_risk_score"] == pytest.approx(eval_result.policy_risk_score, abs=1e-4)
+        assert api_result["policy_risk_score"] == pytest.approx(
+            eval_result.policy_risk_score, abs=1e-4
+        )
         assert api_result["risk_band"] == eval_result.risk_band.value
         assert set(api_result["reason_codes"]) == set(eval_result.reason_codes)

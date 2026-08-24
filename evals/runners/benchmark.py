@@ -14,9 +14,9 @@ Executes:
 
 import argparse
 import asyncio
-from datetime import UTC, datetime
 import json
 import math
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -27,13 +27,18 @@ from evals.fixtures.generate_critic_challenges import generate_challenge_suite
 from src.traffic_triage.agents.crew import SOCTriageCrew
 from src.traffic_triage.agents.supervisor import DeterministicSupervisor
 from src.traffic_triage.detection.calibration import ScoreCalibrator
-from src.traffic_triage.detection.model_bundle import ModelBundle, ModelBundleLoader, compute_file_sha256
-from src.traffic_triage.detection.pytorch_model import PyTorchThreatDetector
+from src.traffic_triage.detection.model_bundle import (
+    ModelBundle,
+    ModelBundleLoader,
+    compute_file_sha256,
+)
 from src.traffic_triage.detection.rules import RuleBaselineDetector
-from src.traffic_triage.detection.supervised import SupervisedThreatClassifier
-from src.traffic_triage.detection.unsupervised import UnsupervisedAnomalyDetector
 from src.traffic_triage.evidence.collector import EvidenceCollector
-from src.traffic_triage.features.extractor import FEATURE_NAMES, FeatureExtractor, SessionFeatureVector
+from src.traffic_triage.features.extractor import (
+    FEATURE_NAMES,
+    FeatureExtractor,
+    SessionFeatureVector,
+)
 from src.traffic_triage.identity.trust import IdentityEvaluator
 from src.traffic_triage.llm.providers.deterministic_local import DeterministicLocalProvider
 from src.traffic_triage.mcp_activity.analyzer import MCPSequenceAnalyzer
@@ -75,7 +80,9 @@ def extract_session_features_and_labels(
     out = {}
     for s in sessions:
         fv = extractor.extract_features(s.events, s.session_id)
-        is_threat = 1 if any(e.synthetic_ground_truth in ("threat", "suspicious") for e in s.events) else 0
+        is_threat = (
+            1 if any(e.synthetic_ground_truth in ("threat", "suspicious") for e in s.events) else 0
+        )
         scenario_id = s.events[0].synthetic_scenario_id if s.events else "unknown"
         out[s.session_id] = (fv, is_threat, scenario_id)
     return out
@@ -112,21 +119,25 @@ def evaluate_model_on_split(
         y_pred_policy.append(pred_bin)
 
         if pred_bin == 1 and label == 0:
-            false_positives.append({
-                "session_id": sid,
-                "scenario_id": scen_id,
-                "policy_risk_score": p_score,
-                "calibrated_model_prob": prob,
-                "reason_codes": det.reason_codes,
-            })
+            false_positives.append(
+                {
+                    "session_id": sid,
+                    "scenario_id": scen_id,
+                    "policy_risk_score": p_score,
+                    "calibrated_model_prob": prob,
+                    "reason_codes": det.reason_codes,
+                }
+            )
         elif pred_bin == 0 and label == 1:
-            false_negatives.append({
-                "session_id": sid,
-                "scenario_id": scen_id,
-                "policy_risk_score": p_score,
-                "calibrated_model_prob": prob,
-                "reason_codes": det.reason_codes,
-            })
+            false_negatives.append(
+                {
+                    "session_id": sid,
+                    "scenario_id": scen_id,
+                    "policy_risk_score": p_score,
+                    "calibrated_model_prob": prob,
+                    "reason_codes": det.reason_codes,
+                }
+            )
 
     if not y_true:
         return {
@@ -206,11 +217,13 @@ def compute_permutation_importance(
             score_perm = bundle.supervised.model.score(X_scaled, y_val)
             scores.append(baseline_score - score_perm)
         mean_drop = float(np.mean(scores))
-        importances.append({
-            "feature_name": feat_name,
-            "importance_mean": round(mean_drop, 4),
-            "importance_std": round(float(np.std(scores)), 4),
-        })
+        importances.append(
+            {
+                "feature_name": feat_name,
+                "importance_mean": round(mean_drop, 4),
+                "importance_std": round(float(np.std(scores)), 4),
+            }
+        )
 
     importances.sort(key=lambda x: x["importance_mean"], reverse=True)
     return importances
@@ -331,6 +344,7 @@ async def run_full_benchmark(data_dir: str, output_dir: str) -> dict[str, Any]:
     bundle_path = Path("artifacts/model_cards/current")
     if not (bundle_path / "model_manifest.json").exists():
         from src.traffic_triage.detection.train import run_training_pipeline
+
         run_training_pipeline(data_dir=data_dir, output_dir="artifacts/model_cards")
 
     bundle = ModelBundleLoader.load(bundle_path)
@@ -342,6 +356,7 @@ async def run_full_benchmark(data_dir: str, output_dir: str) -> dict[str, Any]:
     splits_file = Path(data_dir) / "splits.json"
 
     from src.traffic_triage.detection.train import load_parquet_events
+
     events = load_parquet_events(str(parquet_file))
     with open(splits_file) as f:
         splits = json.load(f)
@@ -350,9 +365,7 @@ async def run_full_benchmark(data_dir: str, output_dir: str) -> dict[str, Any]:
 
     # 1. Track A: IID Instance Holdout Evaluation
     print("=== Step 2/8: Evaluating Track A (IID Instance Holdout) ===", flush=True)
-    iid_results = evaluate_model_on_split(
-        bundle, session_data, splits["test"], rules_det, policy
-    )
+    iid_results = evaluate_model_on_split(bundle, session_data, splits["test"], rules_det, policy)
 
     # 2. Track B: Out-of-Distribution (OOD) Scenario-Family Holdout Evaluation (5 folds)
     print("=== Step 3/8: Evaluating Track B (5-Fold Scenario-Family Holdout) ===", flush=True)
@@ -391,7 +404,7 @@ async def run_full_benchmark(data_dir: str, output_dir: str) -> dict[str, Any]:
     seed_recalls = []
     seed_fprs = []
 
-    for s_idx, s_val in enumerate([42, 101, 202, 303, 404], start=1):
+    for s_val in [42, 101, 202, 303, 404]:
         gen = SyntheticCorpusGenerator(seed=s_val)
         ev_s, sp_s = gen.generate_full_corpus(sessions_per_scenario=5)
         s_data = extract_session_features_and_labels(ev_s, extractor)
@@ -569,30 +582,65 @@ async def run_full_benchmark(data_dir: str, output_dir: str) -> dict[str, Any]:
     # 9. Architectural Component Ablations
     test_ids = splits["test"]
     y_test_arr = np.array([session_data[sid][1] for sid in test_ids if sid in session_data])
-    X_test_arr = np.array([session_data[sid][0].to_array() for sid in test_ids if sid in session_data])
 
     # A: Rules only
-    y_rules_pred = [1 if rules_det.evaluate(session_data[sid][0]).score >= 0.5 else 0 for sid in test_ids]
-    p_r, r_r, f1_r, _ = precision_recall_fscore_support(y_test_arr, y_rules_pred, average="binary", zero_division=0)
+    y_rules_pred = [
+        1 if rules_det.evaluate(session_data[sid][0]).score >= 0.5 else 0 for sid in test_ids
+    ]
+    p_r, r_r, f1_r, _ = precision_recall_fscore_support(
+        y_test_arr, y_rules_pred, average="binary", zero_division=0
+    )
 
     # B: Supervised only
-    y_sup_pred = [1 if bundle.supervised.predict_proba(session_data[sid][0]) >= 0.5 else 0 for sid in test_ids]
-    p_s, r_s, f1_s, _ = precision_recall_fscore_support(y_test_arr, y_sup_pred, average="binary", zero_division=0)
+    y_sup_pred = [
+        1 if bundle.supervised.predict_proba(session_data[sid][0]) >= 0.5 else 0 for sid in test_ids
+    ]
+    p_s, r_s, f1_s, _ = precision_recall_fscore_support(
+        y_test_arr, y_sup_pred, average="binary", zero_division=0
+    )
 
     # C: Anomaly only
-    y_ano_pred = [1 if bundle.anomaly.predict_score(session_data[sid][0]) >= 0.5 else 0 for sid in test_ids]
-    p_a, r_a, f1_a, _ = precision_recall_fscore_support(y_test_arr, y_ano_pred, average="binary", zero_division=0)
+    y_ano_pred = [
+        1 if bundle.anomaly.predict_score(session_data[sid][0]) >= 0.5 else 0 for sid in test_ids
+    ]
+    p_a, r_a, f1_a, _ = precision_recall_fscore_support(
+        y_test_arr, y_ano_pred, average="binary", zero_division=0
+    )
 
     # D: PyTorch only
-    y_pyt_pred = [1 if bundle.pytorch.predict_score(session_data[sid][0]) >= 0.5 else 0 for sid in test_ids]
-    p_py, r_py, f1_py, _ = precision_recall_fscore_support(y_test_arr, y_pyt_pred, average="binary", zero_division=0)
+    y_pyt_pred = [
+        1 if bundle.pytorch.predict_score(session_data[sid][0]) >= 0.5 else 0 for sid in test_ids
+    ]
+    p_py, r_py, f1_py, _ = precision_recall_fscore_support(
+        y_test_arr, y_pyt_pred, average="binary", zero_division=0
+    )
 
     ablations_summary = {
-        "A_rules_only": {"precision": round(float(p_r), 4), "recall": round(float(r_r), 4), "f1": round(float(f1_r), 4)},
-        "B_supervised_only": {"precision": round(float(p_s), 4), "recall": round(float(r_s), 4), "f1": round(float(f1_s), 4)},
-        "C_anomaly_only": {"precision": round(float(p_a), 4), "recall": round(float(r_a), 4), "f1": round(float(f1_a), 4)},
-        "D_pytorch_only": {"precision": round(float(p_py), 4), "recall": round(float(r_py), 4), "f1": round(float(f1_py), 4)},
-        "G_full_fusion_policy": {"precision": iid_results["precision"], "recall": iid_results["recall"], "f1": iid_results["f1"]},
+        "A_rules_only": {
+            "precision": round(float(p_r), 4),
+            "recall": round(float(r_r), 4),
+            "f1": round(float(f1_r), 4),
+        },
+        "B_supervised_only": {
+            "precision": round(float(p_s), 4),
+            "recall": round(float(r_s), 4),
+            "f1": round(float(f1_s), 4),
+        },
+        "C_anomaly_only": {
+            "precision": round(float(p_a), 4),
+            "recall": round(float(r_a), 4),
+            "f1": round(float(f1_a), 4),
+        },
+        "D_pytorch_only": {
+            "precision": round(float(p_py), 4),
+            "recall": round(float(r_py), 4),
+            "f1": round(float(f1_py), 4),
+        },
+        "G_full_fusion_policy": {
+            "precision": iid_results["precision"],
+            "recall": iid_results["recall"],
+            "f1": iid_results["f1"],
+        },
         "H_without_critic_catch_rate": 0.0,
         "I_with_critic_catch_rate": critic_summary["catch_rate"],
     }
@@ -661,16 +709,16 @@ async def run_full_benchmark(data_dir: str, output_dir: str) -> dict[str, Any]:
 
 | Metric | Result |
 |---|---|
-| Test Sessions (N) | {iid_results['n_samples']} |
-| Precision | {iid_results['precision']:.4f} |
-| Recall | {iid_results['recall']:.4f} |
-| F1 Score | {iid_results['f1']:.4f} |
-| False Positive Rate (FPR) | {iid_results['fpr']:.4f} |
-| False Negative Rate (FNR) | {iid_results['fnr']:.4f} |
-| ROC-AUC | {iid_results['roc_auc']:.4f} |
-| PR-AUC | {iid_results['pr_auc']:.4f} |
-| Brier Score | {iid_results['brier_score']:.4f} |
-| Expected Calibration Error | {iid_results['ece']:.4f} |
+| Test Sessions (N) | {iid_results["n_samples"]} |
+| Precision | {iid_results["precision"]:.4f} |
+| Recall | {iid_results["recall"]:.4f} |
+| F1 Score | {iid_results["f1"]:.4f} |
+| False Positive Rate (FPR) | {iid_results["fpr"]:.4f} |
+| False Negative Rate (FNR) | {iid_results["fnr"]:.4f} |
+| ROC-AUC | {iid_results["roc_auc"]:.4f} |
+| PR-AUC | {iid_results["pr_auc"]:.4f} |
+| Brier Score | {iid_results["brier_score"]:.4f} |
+| Expected Calibration Error | {iid_results["ece"]:.4f} |
 """)
 
     with open(out_path / "OOD_FAMILY_HOLDOUT_REPORT.md", "w") as f:
@@ -680,11 +728,11 @@ async def run_full_benchmark(data_dir: str, output_dir: str) -> dict[str, Any]:
 
 | Metric | Mean ± Std |
 |---|---|
-| Folds Evaluated | {ood_summary['n_folds']} |
-| Mean F1 Score | {ood_summary['mean_f1']:.4f} ± {ood_summary['std_f1']:.4f} |
-| Mean Precision | {ood_summary['mean_precision']:.4f} ± {ood_summary['std_precision']:.4f} |
-| Mean Recall | {ood_summary['mean_recall']:.4f} ± {ood_summary['std_recall']:.4f} |
-| Mean FPR | {ood_summary['mean_fpr']:.4f} ± {ood_summary['std_fpr']:.4f} |
+| Folds Evaluated | {ood_summary["n_folds"]} |
+| Mean F1 Score | {ood_summary["mean_f1"]:.4f} ± {ood_summary["std_f1"]:.4f} |
+| Mean Precision | {ood_summary["mean_precision"]:.4f} ± {ood_summary["std_precision"]:.4f} |
+| Mean Recall | {ood_summary["mean_recall"]:.4f} ± {ood_summary["std_recall"]:.4f} |
+| Mean FPR | {ood_summary["mean_fpr"]:.4f} ± {ood_summary["std_fpr"]:.4f} |
 """)
 
     with open(out_path / "HARD_NEGATIVE_REPORT.md", "w") as f:
@@ -696,7 +744,7 @@ async def run_full_benchmark(data_dir: str, output_dir: str) -> dict[str, Any]:
 |---|---|
 | Benign Sessions Evaluated (N) | {n_benign} |
 | False Positives Observed | {fp_count} |
-| Estimated FPR | {hn_res['fpr']:.4f} |
+| Estimated FPR | {hn_res["fpr"]:.4f} |
 | 95% Wilson Confidence Interval | [{ci_lower:.4f}, {ci_upper:.4f}] |
 """)
 
@@ -705,54 +753,54 @@ async def run_full_benchmark(data_dir: str, output_dir: str) -> dict[str, Any]:
 
 > **Scope**: Platt sigmoid scaling evaluated on continuous `calibrated_model_probability`.
 
-- **Brier Score**: {iid_results['brier_score']:.4f}
-- **Expected Calibration Error (ECE)**: {iid_results['ece']:.4f}
+- **Brier Score**: {iid_results["brier_score"]:.4f}
+- **Expected Calibration Error (ECE)**: {iid_results["ece"]:.4f}
 - **Calibration Target**: Continuous model probability is calibrated before deterministic operational policy overrides.
 """)
 
     with open(out_path / "AGENT_GROUNDEDNESS_REPORT.md", "w") as f:
         f.write(f"""# Agent Grounding & Claim Validation Report
 
-> **Scope**: Evaluated across {grounding_summary['evaluated_sessions']} test incident briefs with observed counters.
+> **Scope**: Evaluated across {grounding_summary["evaluated_sessions"]} test incident briefs with observed counters.
 
 | Metric | Observed Result |
 |---|---|
-| Total Evidence Citations | {grounding_summary['total_citations']} |
-| Valid Evidence Citations | {grounding_summary['valid_citations']} |
-| Citation Validity Rate | {grounding_summary['citation_validity_rate'] * 100:.1f}% |
-| Total Factual Claims | {grounding_summary['total_factual_claims']} |
-| Supported Factual Claims | {grounding_summary['supported_factual_claims']} |
-| Unsupported Claim Rate | {grounding_summary['unsupported_claim_rate'] * 100:.1f}% |
-| Total Numeric Claims | {grounding_summary['total_numeric_claims']} |
-| Numeric Claim Accuracy | {grounding_summary['numeric_claim_accuracy'] * 100:.1f}% |
-| Risk Mutation Attempts Accepted | {grounding_summary['risk_mutations_accepted']} ({grounding_summary['risk_mutation_acceptance_rate'] * 100:.1f}%) |
+| Total Evidence Citations | {grounding_summary["total_citations"]} |
+| Valid Evidence Citations | {grounding_summary["valid_citations"]} |
+| Citation Validity Rate | {grounding_summary["citation_validity_rate"] * 100:.1f}% |
+| Total Factual Claims | {grounding_summary["total_factual_claims"]} |
+| Supported Factual Claims | {grounding_summary["supported_factual_claims"]} |
+| Unsupported Claim Rate | {grounding_summary["unsupported_claim_rate"] * 100:.1f}% |
+| Total Numeric Claims | {grounding_summary["total_numeric_claims"]} |
+| Numeric Claim Accuracy | {grounding_summary["numeric_claim_accuracy"] * 100:.1f}% |
+| Risk Mutation Attempts Accepted | {grounding_summary["risk_mutations_accepted"]} ({grounding_summary["risk_mutation_acceptance_rate"] * 100:.1f}%) |
 """)
 
     with open(out_path / "CRITIC_CHALLENGE_REPORT.md", "w") as f:
         f.write(f"""# Evidence Critic Challenge Benchmark Report
 
-> **Scope**: {critic_summary['total_challenge_cases']} invalid challenge briefs across 14 failure modes + {critic_summary['total_valid_controls']} valid controls.
+> **Scope**: {critic_summary["total_challenge_cases"]} invalid challenge briefs across 14 failure modes + {critic_summary["total_valid_controls"]} valid controls.
 
 | Metric | Observed Result |
 |---|---|
-| Challenge Cases Evaluated | {critic_summary['total_challenge_cases']} |
-| Challenge Cases Caught | {critic_summary['caught_challenge_cases']} |
-| **Critic Catch Rate** | **{critic_summary['catch_rate'] * 100:.1f}%** |
-| Valid Controls Evaluated | {critic_summary['total_valid_controls']} |
-| False Rejections on Controls | {critic_summary['false_rejections']} |
-| **False Rejection Rate** | **{critic_summary['false_rejection_rate'] * 100:.1f}%** |
+| Challenge Cases Evaluated | {critic_summary["total_challenge_cases"]} |
+| Challenge Cases Caught | {critic_summary["caught_challenge_cases"]} |
+| **Critic Catch Rate** | **{critic_summary["catch_rate"] * 100:.1f}%** |
+| Valid Controls Evaluated | {critic_summary["total_valid_controls"]} |
+| False Rejections on Controls | {critic_summary["false_rejections"]} |
+| **False Rejection Rate** | **{critic_summary["false_rejection_rate"] * 100:.1f}%** |
 """)
 
     with open(out_path / "INJECTION_REPORT.md", "w") as f:
         f.write(f"""# Adversarial Prompt Injection Defense Report
 
-> **Scope**: End-to-end execution of all {injection_summary['total_fixtures_tested']} adversarial injection fixtures.
+> **Scope**: End-to-end execution of all {injection_summary["total_fixtures_tested"]} adversarial injection fixtures.
 
 | Metric | Result |
 |---|---|
-| Total Adversarial Fixtures | {injection_summary['total_fixtures_tested']} |
-| Fixtures Defended | {injection_summary['fixtures_defended']} |
-| **Pass Rate** | **{injection_summary['pass_rate'] * 100:.1f}%** |
+| Total Adversarial Fixtures | {injection_summary["total_fixtures_tested"]} |
+| Fixtures Defended | {injection_summary["fixtures_defended"]} |
+| **Pass Rate** | **{injection_summary["pass_rate"] * 100:.1f}%** |
 | Score Immutability Enforced | YES (0.0% mutation) |
 | Citation Boundary Enforced | YES (0 unknown citations admitted) |
 """)
@@ -762,17 +810,21 @@ async def run_full_benchmark(data_dir: str, output_dir: str) -> dict[str, Any]:
 
 | Configuration | Precision | Recall | F1 Score |
 |---|---|---|---|
-| A. Rules Only | {ablations_summary['A_rules_only']['precision']:.4f} | {ablations_summary['A_rules_only']['recall']:.4f} | {ablations_summary['A_rules_only']['f1']:.4f} |
-| B. Supervised Only | {ablations_summary['B_supervised_only']['precision']:.4f} | {ablations_summary['B_supervised_only']['recall']:.4f} | {ablations_summary['B_supervised_only']['f1']:.4f} |
-| C. Anomaly Only | {ablations_summary['C_anomaly_only']['precision']:.4f} | {ablations_summary['C_anomaly_only']['recall']:.4f} | {ablations_summary['C_anomaly_only']['f1']:.4f} |
-| D. PyTorch Only | {ablations_summary['D_pytorch_only']['precision']:.4f} | {ablations_summary['D_pytorch_only']['recall']:.4f} | {ablations_summary['D_pytorch_only']['f1']:.4f} |
-| **G. Full Risk Policy Fusion** | **{ablations_summary['G_full_fusion_policy']['precision']:.4f}** | **{ablations_summary['G_full_fusion_policy']['recall']:.4f}** | **{ablations_summary['G_full_fusion_policy']['f1']:.4f}** |
+| A. Rules Only | {ablations_summary["A_rules_only"]["precision"]:.4f} | {ablations_summary["A_rules_only"]["recall"]:.4f} | {ablations_summary["A_rules_only"]["f1"]:.4f} |
+| B. Supervised Only | {ablations_summary["B_supervised_only"]["precision"]:.4f} | {ablations_summary["B_supervised_only"]["recall"]:.4f} | {ablations_summary["B_supervised_only"]["f1"]:.4f} |
+| C. Anomaly Only | {ablations_summary["C_anomaly_only"]["precision"]:.4f} | {ablations_summary["C_anomaly_only"]["recall"]:.4f} | {ablations_summary["C_anomaly_only"]["f1"]:.4f} |
+| D. PyTorch Only | {ablations_summary["D_pytorch_only"]["precision"]:.4f} | {ablations_summary["D_pytorch_only"]["recall"]:.4f} | {ablations_summary["D_pytorch_only"]["f1"]:.4f} |
+| **G. Full Risk Policy Fusion** | **{ablations_summary["G_full_fusion_policy"]["precision"]:.4f}** | **{ablations_summary["G_full_fusion_policy"]["recall"]:.4f}** | **{ablations_summary["G_full_fusion_policy"]["f1"]:.4f}** |
 """)
 
     with open(out_path / "FEATURE_IMPORTANCE_REPORT.md", "w") as f:
-        f.write("# Permutation Feature Importance Report\n\n| Rank | Feature Name | Mean Importance Drop | Std |\n|---|---|---|---|\n")
+        f.write(
+            "# Permutation Feature Importance Report\n\n| Rank | Feature Name | Mean Importance Drop | Std |\n|---|---|---|---|\n"
+        )
         for rank, item in enumerate(importance_list[:15], start=1):
-            f.write(f"| {rank} | `{item['feature_name']}` | {item['importance_mean']:.4f} | {item['importance_std']:.4f} |\n")
+            f.write(
+                f"| {rank} | `{item['feature_name']}` | {item['importance_mean']:.4f} | {item['importance_std']:.4f} |\n"
+            )
 
     with open(out_path / "PROVIDER_EVAL_STATUS.md", "w") as f:
         f.write("""# Provider Integration & Evaluation Status
