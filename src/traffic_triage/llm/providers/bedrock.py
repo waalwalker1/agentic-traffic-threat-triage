@@ -22,6 +22,10 @@ class BedrockProvider:
         self.region_name = region_name
         self.model_id = model_id
 
+    @property
+    def region(self) -> str:
+        return self.region_name
+
     async def generate_structured(
         self,
         prompt: StructuredPrompt,

@@ -77,13 +77,13 @@ def extract_session_features_and_labels(
 
     sessionizer = TelemetrySessionizer()
     sessions = sessionizer.sessionize(events)
-    out = {}
+    out: dict[str, tuple[SessionFeatureVector, int, str]] = {}
     for s in sessions:
         fv = extractor.extract_features(s.events, s.session_id)
         is_threat = (
             1 if any(e.synthetic_ground_truth in ("threat", "suspicious") for e in s.events) else 0
         )
-        scenario_id = s.events[0].synthetic_scenario_id if s.events else "unknown"
+        scenario_id = str(s.events[0].synthetic_scenario_id or "unknown") if s.events else "unknown"
         out[s.session_id] = (fv, is_threat, scenario_id)
     return out
 
@@ -225,7 +225,7 @@ def compute_permutation_importance(
             }
         )
 
-    importances.sort(key=lambda x: x["importance_mean"], reverse=True)
+    importances.sort(key=lambda x: float(str(x["importance_mean"])), reverse=True)
     return importances
 
 
@@ -785,10 +785,10 @@ async def run_full_benchmark(data_dir: str, output_dir: str) -> dict[str, Any]:
 |---|---|
 | Challenge Cases Evaluated | {critic_summary["total_challenge_cases"]} |
 | Challenge Cases Caught | {critic_summary["caught_challenge_cases"]} |
-| **Critic Catch Rate** | **{critic_summary["catch_rate"] * 100:.1f}%** |
+| **Critic Catch Rate** | **{float(str(critic_summary["catch_rate"])) * 100:.1f}%** |
 | Valid Controls Evaluated | {critic_summary["total_valid_controls"]} |
 | False Rejections on Controls | {critic_summary["false_rejections"]} |
-| **False Rejection Rate** | **{critic_summary["false_rejection_rate"] * 100:.1f}%** |
+| **False Rejection Rate** | **{float(str(critic_summary["false_rejection_rate"])) * 100:.1f}%** |
 """)
 
     with open(out_path / "INJECTION_REPORT.md", "w") as f:
@@ -800,21 +800,27 @@ async def run_full_benchmark(data_dir: str, output_dir: str) -> dict[str, Any]:
 |---|---|
 | Total Adversarial Fixtures | {injection_summary["total_fixtures_tested"]} |
 | Fixtures Defended | {injection_summary["fixtures_defended"]} |
-| **Pass Rate** | **{injection_summary["pass_rate"] * 100:.1f}%** |
+| **Pass Rate** | **{float(injection_summary["pass_rate"]) * 100:.1f}%** |
 | Score Immutability Enforced | YES (0.0% mutation) |
 | Citation Boundary Enforced | YES (0 unknown citations admitted) |
 """)
+
+    a_r: dict[str, Any] = ablations_summary["A_rules_only"]  # type: ignore[assignment]
+    b_s: dict[str, Any] = ablations_summary["B_supervised_only"]  # type: ignore[assignment]
+    c_a: dict[str, Any] = ablations_summary["C_anomaly_only"]  # type: ignore[assignment]
+    d_p: dict[str, Any] = ablations_summary["D_pytorch_only"]  # type: ignore[assignment]
+    g_f: dict[str, Any] = ablations_summary["G_full_fusion_policy"]  # type: ignore[assignment]
 
     with open(out_path / "ABLATION_REPORT.md", "w") as f:
         f.write(f"""# Architectural Component Ablations Report
 
 | Configuration | Precision | Recall | F1 Score |
 |---|---|---|---|
-| A. Rules Only | {ablations_summary["A_rules_only"]["precision"]:.4f} | {ablations_summary["A_rules_only"]["recall"]:.4f} | {ablations_summary["A_rules_only"]["f1"]:.4f} |
-| B. Supervised Only | {ablations_summary["B_supervised_only"]["precision"]:.4f} | {ablations_summary["B_supervised_only"]["recall"]:.4f} | {ablations_summary["B_supervised_only"]["f1"]:.4f} |
-| C. Anomaly Only | {ablations_summary["C_anomaly_only"]["precision"]:.4f} | {ablations_summary["C_anomaly_only"]["recall"]:.4f} | {ablations_summary["C_anomaly_only"]["f1"]:.4f} |
-| D. PyTorch Only | {ablations_summary["D_pytorch_only"]["precision"]:.4f} | {ablations_summary["D_pytorch_only"]["recall"]:.4f} | {ablations_summary["D_pytorch_only"]["f1"]:.4f} |
-| **G. Full Risk Policy Fusion** | **{ablations_summary["G_full_fusion_policy"]["precision"]:.4f}** | **{ablations_summary["G_full_fusion_policy"]["recall"]:.4f}** | **{ablations_summary["G_full_fusion_policy"]["f1"]:.4f}** |
+| A. Rules Only | {float(a_r['precision']):.4f} | {float(a_r['recall']):.4f} | {float(a_r['f1']):.4f} |
+| B. Supervised Only | {float(b_s['precision']):.4f} | {float(b_s['recall']):.4f} | {float(b_s['f1']):.4f} |
+| C. Anomaly Only | {float(c_a['precision']):.4f} | {float(c_a['recall']):.4f} | {float(c_a['f1']):.4f} |
+| D. PyTorch Only | {float(d_p['precision']):.4f} | {float(d_p['recall']):.4f} | {float(d_p['f1']):.4f} |
+| **G. Full Risk Policy Fusion** | **{float(g_f['precision']):.4f}** | **{float(g_f['recall']):.4f}** | **{float(g_f['f1']):.4f}** |
 """)
 
     with open(out_path / "FEATURE_IMPORTANCE_REPORT.md", "w") as f:
