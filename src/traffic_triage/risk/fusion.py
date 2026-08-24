@@ -1,5 +1,6 @@
 """Deterministic RiskPolicy and multi-signal risk fusion engine."""
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from src.traffic_triage.features.extractor import SessionFeatureVector
@@ -8,11 +9,34 @@ from src.traffic_triage.schemas.detection import DetectionResult, RiskBand
 POLICY_VERSION = "2026.1.0"
 
 
-class RiskPolicy:
-    """Combines rule, supervised, anomaly, PyTorch, and identity signals into deterministic risk."""
+@dataclass
+class PolicyWeights:
+    rules: float = 0.25
+    supervised: float = 0.30
+    unsupervised: float = 0.15
+    pytorch: float = 0.15
+    identity_uncertainty: float = 0.15
 
-    def __init__(self, version: str = POLICY_VERSION) -> None:
+
+@dataclass
+class PolicyThresholds:
+    critical: float = 0.80
+    high: float = 0.60
+    medium: float = 0.35
+
+
+class RiskPolicy:
+    """Combines rule, supervised, anomaly, PyTorch, and identity signals into deterministic policy risk."""
+
+    def __init__(
+        self,
+        version: str = POLICY_VERSION,
+        weights: PolicyWeights | None = None,
+        thresholds: PolicyThresholds | None = None,
+    ) -> None:
         self.version = version
+        self.weights = weights or PolicyWeights()
+        self.thresholds = thresholds or PolicyThresholds()
 
     def fuse_scores(
         self,
@@ -25,6 +49,7 @@ class RiskPolicy:
         reason_codes: list[str],
         evidence_ids: list[str],
         model_versions: dict[str, str] | None = None,
+        calibrated_probability: float | None = None,
     ) -> DetectionResult:
         f = fv.features
         id_conf = f.get("identity_confidence", 0.5)
@@ -37,50 +62,58 @@ class RiskPolicy:
         auth_fail = f.get("auth_failure_ratio", 0.0)
         is_verified = f.get("identity_proof_valid", 0.0) == 1.0
 
-        # Base weighted fusion
+        # Continuous model ensemble score
+        raw_model = float(
+            self.weights.supervised * supervised_score
+            + self.weights.unsupervised * anomaly_score
+            + self.weights.pytorch * pytorch_score
+        )
+        raw_model = float(min(max(raw_model, 0.0), 1.0))
+        calibrated_prob = calibrated_probability if calibrated_probability is not None else raw_model
+
+        # Base operational fusion
         base_risk = (
-            0.30 * supervised_score
-            + 0.25 * rules_score
-            + 0.15 * anomaly_score
-            + 0.15 * pytorch_score
-            + 0.15 * (1.0 - id_conf)
+            self.weights.supervised * supervised_score
+            + self.weights.rules * rules_score
+            + self.weights.unsupervised * anomaly_score
+            + self.weights.pytorch * pytorch_score
+            + self.weights.identity_uncertainty * (1.0 - id_conf)
         )
 
-        final_risk = base_risk
+        final_policy_risk = base_risk
+        override_codes: list[str] = []
 
         # Deterministic hard-rule overrides
         if id_invalid or id_mismatch:
-            final_risk = max(final_risk, 0.85)
-            if "RISK_OVERRIDE_IDENTITY_MISMATCH" not in reason_codes:
-                reason_codes.append("RISK_OVERRIDE_IDENTITY_MISMATCH")
+            final_policy_risk = max(final_policy_risk, 0.85)
+            override_codes.append("RISK_OVERRIDE_IDENTITY_MISMATCH")
 
         if auth_fail >= 0.50:
-            final_risk = max(final_risk, 0.80)
-            if "RISK_OVERRIDE_CREDENTIAL_ABUSE" not in reason_codes:
-                reason_codes.append("RISK_OVERRIDE_CREDENTIAL_ABUSE")
+            final_policy_risk = max(final_policy_risk, 0.80)
+            override_codes.append("RISK_OVERRIDE_CREDENTIAL_ABUSE")
 
         if rps >= 30.0:
-            final_risk = max(final_risk, 0.75)
-            if "RISK_OVERRIDE_BURST_VOLUME" not in reason_codes:
-                reason_codes.append("RISK_OVERRIDE_BURST_VOLUME")
+            final_policy_risk = max(final_policy_risk, 0.75)
+            override_codes.append("RISK_OVERRIDE_BURST_VOLUME")
 
         # Benign cryptographic verification discount if behavioral signals are clean
         if is_verified and rules_score < 0.20 and rps < 10.0 and auth_fail == 0.0:
-            final_risk = min(final_risk, 0.20)
-            if "RISK_DISCOUNT_VERIFIED_BENIGN" not in reason_codes:
-                reason_codes.append("RISK_DISCOUNT_VERIFIED_BENIGN")
+            final_policy_risk = min(final_policy_risk, 0.20)
+            override_codes.append("RISK_DISCOUNT_VERIFIED_BENIGN")
 
-        calibrated_risk = float(round(min(1.0, max(0.0, final_risk)), 4))
+        final_policy_score = float(round(min(1.0, max(0.0, final_policy_risk)), 4))
 
         # Assign discrete RiskBand
-        if calibrated_risk >= 0.80:
+        if final_policy_score >= self.thresholds.critical:
             band = RiskBand.CRITICAL
-        elif calibrated_risk >= 0.60:
+        elif final_policy_score >= self.thresholds.high:
             band = RiskBand.HIGH
-        elif calibrated_risk >= 0.35:
+        elif final_policy_score >= self.thresholds.medium:
             band = RiskBand.MEDIUM
         else:
             band = RiskBand.LOW
+
+        all_reasons = sorted(list(set(reason_codes + override_codes)))
 
         return DetectionResult(
             session_id=session_id,
@@ -88,11 +121,15 @@ class RiskPolicy:
             supervised_score=round(supervised_score, 4),
             anomaly_score=round(anomaly_score, 4),
             pytorch_score=round(pytorch_score, 4),
-            calibrated_risk_score=calibrated_risk,
+            raw_model_score=round(raw_model, 4),
+            calibrated_model_probability=round(calibrated_prob, 4),
+            policy_risk_score=final_policy_score,
+            calibrated_risk_score=final_policy_score,
             risk_band=band,
+            policy_override_codes=override_codes,
             model_versions=model_versions or {"policy": self.version},
             feature_schema_version=fv.feature_schema_version,
-            reason_codes=reason_codes,
+            reason_codes=all_reasons,
             evidence_ids=evidence_ids,
             evaluated_at=datetime.now(UTC),
         )

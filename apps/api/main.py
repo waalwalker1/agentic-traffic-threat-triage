@@ -1,13 +1,12 @@
 """FastAPI production REST API service for Agentic Traffic Threat Triage."""
 
 import json
+import logging
 import os
-import time
-import uuid
-from contextlib import asynccontextmanager
-from datetime import UTC, datetime
 from pathlib import Path
+import time
 from typing import Any
+import uuid
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +15,12 @@ from pydantic import BaseModel, Field
 
 from src.traffic_triage.agents.crew import SOCTriageCrew
 from src.traffic_triage.agents.supervisor import DeterministicSupervisor
+from src.traffic_triage.detection.calibration import ScoreCalibrator
+from src.traffic_triage.detection.model_bundle import (
+    ModelBundle,
+    ModelBundleError,
+    ModelBundleLoader,
+)
 from src.traffic_triage.detection.pytorch_model import PyTorchThreatDetector
 from src.traffic_triage.detection.rules import RuleBaselineDetector
 from src.traffic_triage.detection.supervised import SupervisedThreatClassifier
@@ -36,6 +41,8 @@ from src.traffic_triage.schemas.incidents import (
 )
 from src.traffic_triage.telemetry.sessionizer import TelemetrySessionizer
 
+logger = logging.getLogger(__name__)
+
 # Prometheus Metrics
 REQUEST_COUNT = Counter(
     "triage_api_requests_total", "Total API requests", ["method", "endpoint", "status"]
@@ -55,24 +62,56 @@ class ServiceContainer:
         self.identity_evaluator = IdentityEvaluator()
         self.mcp_analyzer = MCPSequenceAnalyzer()
         self.rules_detector = RuleBaselineDetector()
-        self.unsupervised_detector = UnsupervisedAnomalyDetector()
-        self.supervised_classifier = SupervisedThreatClassifier()
-        self.pytorch_detector = PyTorchThreatDetector()
         self.risk_policy = RiskPolicy()
         self.evidence_collector = EvidenceCollector()
+
+        # Model bundle lifecycle
+        self.model_mode = os.getenv("MODEL_MODE", "trained")
+        self.bundle_dir = os.getenv("MODEL_BUNDLE_DIR", "artifacts/model_cards/current")
+        self.bundle: ModelBundle | None = None
+        self.models_loaded = False
+        self.load_error: str | None = None
+
+        self.supervised_classifier: SupervisedThreatClassifier | None = None
+        self.unsupervised_detector: UnsupervisedAnomalyDetector | None = None
+        self.pytorch_detector: PyTorchThreatDetector | None = None
+        self.calibrator: ScoreCalibrator | None = None
+
+        self._initialize_models()
 
         # Offline deterministic triage crew & supervisor
         self.llm_provider = DeterministicLocalProvider()
         self.crew = SOCTriageCrew(self.llm_provider)
         self.supervisor = DeterministicSupervisor(self.crew)
 
+    def _initialize_models(self) -> None:
+        if self.model_mode == "explicit_untrained_demo":
+            logger.warning("Running in EXPLICIT UNTRAINED DEMO mode.")
+            self.unsupervised_detector = UnsupervisedAnomalyDetector()
+            self.supervised_classifier = SupervisedThreatClassifier()
+            self.pytorch_detector = PyTorchThreatDetector()
+            self.calibrator = ScoreCalibrator()
+            self.models_loaded = False
+            return
+
+        try:
+            self.bundle = ModelBundleLoader.load(self.bundle_dir)
+            self.supervised_classifier = self.bundle.supervised
+            self.unsupervised_detector = self.bundle.anomaly
+            self.pytorch_detector = self.bundle.pytorch
+            self.calibrator = self.bundle.calibrator
+            self.models_loaded = True
+            logger.info("Successfully loaded trained ModelBundle from %s", self.bundle_dir)
+        except (ModelBundleError, FileNotFoundError, Exception) as err:
+            self.load_error = str(err)
+            self.models_loaded = False
+            logger.error("Failed to load ModelBundle from %s: %s", self.bundle_dir, err)
+
 
 container = ServiceContainer()
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Initialize / Seed models if fixtures exist
+def lifespan(app: FastAPI):
     parquet_path = Path("data/fixtures/traffic_dataset.parquet")
     if parquet_path.exists():
         from src.traffic_triage.detection.train import load_parquet_events
@@ -127,13 +166,59 @@ def health_check() -> dict[str, str]:
 
 
 @app.get("/ready", tags=["System"])
-def readiness_check() -> dict[str, str]:
-    return {"status": "ready", "database": "connected"}
+def readiness_check() -> dict[str, Any]:
+    if container.model_mode == "trained" and not container.models_loaded:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "not_ready",
+                "model_mode": container.model_mode,
+                "models_loaded": False,
+                "error": container.load_error or "Model bundle failed to load",
+                "database": "connected",
+            },
+        )
+    return {
+        "status": "ready",
+        "model_mode": container.model_mode,
+        "models_loaded": container.models_loaded,
+        "bundle_version": container.bundle.manifest.bundle_version if container.bundle else "none",
+        "feature_schema_version": "1.0.0",
+        "risk_policy_version": container.risk_policy.version,
+        "database": "connected",
+    }
 
 
 @app.get("/metrics", tags=["System"])
 def metrics_endpoint() -> Response:
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
+@app.get("/api/v1/system/models", tags=["System"])
+def get_system_models() -> dict[str, Any]:
+    if not container.bundle:
+        return {
+            "model_mode": container.model_mode,
+            "models_loaded": False,
+            "error": container.load_error,
+            "manifest": None,
+        }
+    return {
+        "model_mode": container.model_mode,
+        "models_loaded": True,
+        "bundle_version": container.bundle.manifest.bundle_version,
+        "feature_schema_version": container.bundle.manifest.feature_schema_version,
+        "risk_policy_version": container.bundle.manifest.risk_policy_version,
+        "dataset_sha256": container.bundle.manifest.dataset_sha256,
+        "trained_at": container.bundle.manifest.trained_at,
+        "component_versions": {
+            "rules": "1.0.0",
+            "supervised": container.bundle.manifest.supervised_model_version,
+            "anomaly": container.bundle.manifest.anomaly_model_version,
+            "pytorch": container.bundle.manifest.pytorch_model_version,
+            "calibrator": container.bundle.manifest.calibrator_version,
+        },
+    }
 
 
 # --- Request/Response DTOs ---
@@ -186,7 +271,7 @@ def get_session(session_id: str) -> dict[str, Any]:
     return {
         "session": sess,
         "event_count": len(events),
-        "events": [e.model_dump(mode="json") for e in events[:50]],  # cap sample
+        "events": [e.model_dump(mode="json") for e in events[:50]],
         "evidence_items": evidence,
     }
 
@@ -206,21 +291,27 @@ def run_detection(session_id: str) -> DetectionResult:
     ev_items = container.evidence_collector.collect_evidence(session_id, fv, events, id_eval, mcp_m)
     container.store.save_evidence_items(ev_items)
 
-    rules_res = container.rules_detector.evaluate(fv)
-    iso_score = container.unsupervised_detector.predict_score(fv)
-    sup_score = container.supervised_classifier.predict_proba(fv)
-    pyt_score = container.pytorch_detector.predict_score(fv)
+    if container.bundle:
+        det = container.bundle.evaluate_session(fv, container.rules_detector, container.risk_policy)
+        det.evidence_ids = [e.evidence_id for e in ev_items]
+    else:
+        # Explicit untrained / fallback
+        rules_res = container.rules_detector.evaluate(fv)
+        iso_score = container.unsupervised_detector.predict_score(fv) if container.unsupervised_detector else 0.5
+        sup_score = container.supervised_classifier.predict_proba(fv) if container.supervised_classifier else 0.5
+        pyt_score = container.pytorch_detector.predict_score(fv) if container.pytorch_detector else 0.5
 
-    det = container.risk_policy.fuse_scores(
-        session_id=session_id,
-        fv=fv,
-        rules_score=rules_res.score,
-        supervised_score=sup_score,
-        anomaly_score=iso_score,
-        pytorch_score=pyt_score,
-        reason_codes=rules_res.reason_codes,
-        evidence_ids=[e.evidence_id for e in ev_items],
-    )
+        det = container.risk_policy.fuse_scores(
+            session_id=session_id,
+            fv=fv,
+            rules_score=rules_res.score,
+            supervised_score=sup_score,
+            anomaly_score=iso_score,
+            pytorch_score=pyt_score,
+            reason_codes=rules_res.reason_codes,
+            evidence_ids=[e.evidence_id for e in ev_items],
+        )
+
     container.store.save_detection_result(det)
     return det
 
@@ -238,21 +329,26 @@ async def run_triage(session_id: str) -> IncidentBrief:
     ev_items = container.evidence_collector.collect_evidence(session_id, fv, events, id_eval, mcp_m)
     container.store.save_evidence_items(ev_items)
 
-    rules_res = container.rules_detector.evaluate(fv)
-    iso_score = container.unsupervised_detector.predict_score(fv)
-    sup_score = container.supervised_classifier.predict_proba(fv)
-    pyt_score = container.pytorch_detector.predict_score(fv)
+    if container.bundle:
+        det = container.bundle.evaluate_session(fv, container.rules_detector, container.risk_policy)
+        det.evidence_ids = [e.evidence_id for e in ev_items]
+    else:
+        rules_res = container.rules_detector.evaluate(fv)
+        iso_score = container.unsupervised_detector.predict_score(fv) if container.unsupervised_detector else 0.5
+        sup_score = container.supervised_classifier.predict_proba(fv) if container.supervised_classifier else 0.5
+        pyt_score = container.pytorch_detector.predict_score(fv) if container.pytorch_detector else 0.5
 
-    det = container.risk_policy.fuse_scores(
-        session_id=session_id,
-        fv=fv,
-        rules_score=rules_res.score,
-        supervised_score=sup_score,
-        anomaly_score=iso_score,
-        pytorch_score=pyt_score,
-        reason_codes=rules_res.reason_codes,
-        evidence_ids=[e.evidence_id for e in ev_items],
-    )
+        det = container.risk_policy.fuse_scores(
+            session_id=session_id,
+            fv=fv,
+            rules_score=rules_res.score,
+            supervised_score=sup_score,
+            anomaly_score=iso_score,
+            pytorch_score=pyt_score,
+            reason_codes=rules_res.reason_codes,
+            evidence_ids=[e.evidence_id for e in ev_items],
+        )
+
     container.store.save_detection_result(det)
 
     bundle = container.evidence_collector.build_bundle(session_id, det, ev_items, events)

@@ -160,21 +160,24 @@ def test_validator_rejects_unknown_evidence_citations():
 
 
 @pytest.mark.asyncio
-async def test_supervisor_immune_to_injected_fixtures():
+async def test_supervisor_immune_to_all_28_injected_fixtures():
+    """Execute every single one of the 28 adversarial injection payloads through the full triage pipeline."""
     supervisor = DeterministicSupervisor(SOCTriageCrew(DeterministicLocalProvider()))
+    assert len(INJECTION_FIXTURES) == 28
 
-    for inj in INJECTION_FIXTURES[:10]:
+    for idx, inj in enumerate(INJECTION_FIXTURES):
+        sanitized_inj = sanitize_telemetry_string(inj)
         ev_item = EvidenceItem(
-            evidence_id="E-VOL-test-01",
-            session_id="sess_inj",
+            evidence_id=f"E-VOL-test-{idx:02d}",
+            session_id=f"sess_inj_{idx:02d}",
             kind="volumetric",
             feature_name="requests_per_second",
             observed_value=50.0,
             expected_range_or_context="< 5.0 rps",
-            human_readable_explanation=f"High rate with injected snippet: {sanitize_telemetry_string(inj)}",
+            human_readable_explanation=f"High rate with injected snippet: {sanitized_inj}",
         )
         bundle = CuratedEvidenceBundle(
-            session_id="sess_inj",
+            session_id=f"sess_inj_{idx:02d}",
             risk_score=0.88,
             risk_band="CRITICAL",
             detector_scores={"rules": 0.88},
@@ -182,20 +185,26 @@ async def test_supervisor_immune_to_injected_fixtures():
             evidence_items=[ev_item],
         )
         det_result = DetectionResult(
-            session_id="sess_inj",
+            session_id=f"sess_inj_{idx:02d}",
             rules_score=0.88,
             supervised_score=0.85,
             anomaly_score=0.80,
             pytorch_score=0.82,
+            raw_model_score=0.84,
+            calibrated_model_probability=0.86,
+            policy_risk_score=0.88,
             calibrated_risk_score=0.88,
             risk_band=RiskBand.CRITICAL,
-            evidence_ids=["E-VOL-test-01"],
+            evidence_ids=[f"E-VOL-test-{idx:02d}"],
         )
 
         brief = await supervisor.execute_triage(bundle, det_result)
 
         # Invariant checks:
-        assert brief.risk_score == 0.88
+        assert brief.risk_score == 0.88, f"Score mutated on fixture {idx}: {inj}"
         assert brief.risk_band == RiskBand.CRITICAL
-        assert "E-VOL-test-01" in brief.evidence_citations
+        assert f"E-VOL-test-{idx:02d}" in brief.evidence_citations
         assert not any("FAKE" in c for c in brief.evidence_citations)
+        assert not any("FORGED" in c for c in brief.evidence_citations)
+        # Ensure system instructions remain intact
+        assert len(brief.recommended_analyst_actions) > 0

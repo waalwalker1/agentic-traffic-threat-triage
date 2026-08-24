@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, Field
 
-from src.traffic_triage.schemas.incidents import IntentHypothesis
+from src.traffic_triage.schemas.incidents import GroundedFinding, IntentHypothesis
 
 
 class IdentityAgentOutput(BaseModel):
@@ -32,6 +32,9 @@ class MCPAgentOutput(BaseModel):
 
 
 class SynthesisAgentOutput(BaseModel):
+    grounded_findings: list[GroundedFinding] = Field(
+        default_factory=list, description="Factual findings strictly citing valid EvidenceItems"
+    )
     key_findings: list[str] = Field(..., description="Key factual findings grounded in evidence")
     primary_hypothesis: IntentHypothesis = Field(...)
     alternative_explanations: list[str] = Field(default_factory=list)
@@ -47,4 +50,6 @@ class CriticAgentOutput(BaseModel):
     rejected_reasons: list[str] = Field(default_factory=list)
     invalid_evidence_ids: list[str] = Field(default_factory=list)
     score_mutation_detected: bool = Field(default=False)
+    unsupported_claims_detected: bool = Field(default=False)
+    numeric_mismatches_detected: bool = Field(default=False)
     injection_leakage_detected: bool = Field(default=False)

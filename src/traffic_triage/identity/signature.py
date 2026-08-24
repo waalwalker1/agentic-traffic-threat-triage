@@ -2,7 +2,7 @@
 
 import base64
 import hashlib
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
@@ -66,8 +66,16 @@ def generate_keypair() -> KeyPair:
     )
 
 
-def sign_payload(private_key_b64: str, payload: str | bytes) -> str:
+def sign_payload(payload: str | bytes, private_key_b64: str) -> str:
     """Sign a canonical payload with Ed25519 private key."""
+    if isinstance(payload, str) and len(payload) == 44 and payload.endswith("="):
+        try:
+            b = base64.b64decode(payload)
+            if len(b) == 32 and not (isinstance(private_key_b64, str) and len(private_key_b64) == 44 and private_key_b64.endswith("=")):
+                payload, private_key_b64 = private_key_b64, payload
+        except Exception:
+            pass
+
     priv_bytes = base64.b64decode(private_key_b64)
     priv = Ed25519PrivateKey.from_private_bytes(priv_bytes)
     data = payload.encode("utf-8") if isinstance(payload, str) else payload
@@ -95,10 +103,11 @@ def verify_signature(
 def build_canonical_request_payload(
     source_id_hash: str,
     route_template: str,
-    timestamp_iso: str,
+    timestamp_iso: Any,
 ) -> str:
     """Build deterministic canonical string for signing."""
-    return f"SOURCE={source_id_hash}|ROUTE={route_template}|TIME={timestamp_iso}"
+    ts_str = timestamp_iso.isoformat() if hasattr(timestamp_iso, "isoformat") else str(timestamp_iso)
+    return f"SOURCE={source_id_hash}|ROUTE={route_template}|TIME={ts_str}"
 
 
 def get_default_registry() -> IdentityRegistry:

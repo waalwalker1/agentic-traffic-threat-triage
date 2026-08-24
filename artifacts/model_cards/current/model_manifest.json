@@ -1,0 +1,21 @@
+{
+  "bundle_version": "1.0.0",
+  "feature_schema_version": "1.0.0",
+  "risk_policy_version": "2026.1.0",
+  "trained_at": "2026-08-23T19:51:16.669480+00:00",
+  "dataset_sha256": "523f9d8d813dd49f05c73543bc83afe8ef9f494a47d1a9110ee2a27e0116cbdb",
+  "artifact_sha256": {
+    "supervised.joblib": "9067f66f1fbccc79ad76c962f2cf6102bee2482324ca420b7b0a54d17deb4398",
+    "isolation_forest.joblib": "a333d5bd5fc934042b31bd651c9aa733cba199914d6ad271698bd30330874e3f",
+    "calibrator.joblib": "216b950bb8d65096c2b66669beb114a50f2255077ab39338785f0b492d1c29a5",
+    "pytorch_state.pt": "f9d323cfdb6729260175e8757182d27c92681f38acec84c6508cd43686999092"
+  },
+  "supervised_model_version": "1.0.0",
+  "anomaly_model_version": "1.0.0",
+  "pytorch_model_version": "1.0.0",
+  "calibrator_version": "1.0.0",
+  "calibration_metrics": {
+    "brier_score": 0.1669,
+    "expected_calibration_error": 0.2978
+  }
+}

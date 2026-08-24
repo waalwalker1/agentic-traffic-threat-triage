@@ -7,8 +7,48 @@ on:
     branches: [main]
 
 jobs:
-  python-quality-and-tests:
-    name: Python Quality, Typing & Tests
+  lint-and-typecheck:
+    name: Lint & Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Install Python dependencies
+        run: uv sync --extra dev --extra cloud
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Python Ruff Formatting & Linting
+        run: |
+          uv run ruff format --check src tests tools evals apps
+          uv run ruff check src tests tools evals apps
+
+      - name: Static Type Checking (mypy)
+        run: uv run mypy src tools evals
+
+      - name: TypeScript Type Checking
+        run: npm run typecheck
+
+  unit-and-integration-tests:
+    name: Unit & Integration Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -27,25 +67,60 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev --extra cloud
 
-      - name: Code formatting & linting (Ruff)
+      - name: Generate synthetic dataset & train model bundle
         run: |
-          uv run ruff format --check src tests tools evals apps
-          uv run ruff check src tests tools evals apps
+          uv run python -m tools.synthetic_traffic.generator --seed 42 --output-dir data/fixtures --sample-dir data/samples
+          uv run python -m src.traffic_triage.detection.train --data-dir data/fixtures --output-dir artifacts/model_cards
 
-      - name: Static type checking (mypy)
-        run: uv run mypy src tools evals
+      - name: Run Unit Tests
+        run: uv run pytest tests/unit --cov=src --cov-report=term-missing
 
-      - name: Unit & Protocol Tests
-        run: uv run pytest tests/unit tests/protocol --cov=src --cov-report=term-missing
+      - name: Run Protocol & Security Tests
+        run: uv run pytest tests/protocol tests/security
 
-      - name: Security & Defensive Boundary Tests
-        run: uv run pytest tests/security
-
-      - name: Integration Tests
+      - name: Run Integration Tests
         run: uv run pytest tests/integration
 
-  frontend-quality:
-    name: Frontend Quality & Build
+  benchmark-and-calibration:
+    name: Benchmark Evaluations & Calibration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: uv sync --extra dev --extra cloud
+
+      - name: Execute Full Benchmark Suite
+        run: |
+          uv run python -m tools.synthetic_traffic.generator --seed 42 --output-dir data/fixtures --sample-dir data/samples
+          uv run python -m src.traffic_triage.detection.train --data-dir data/fixtures --output-dir artifacts/model_cards
+          uv run python -m evals.runners.benchmark --data-dir data/fixtures --output-dir artifacts/evals/latest
+
+      - name: Verify Summary & Benchmark Artifacts
+        run: |
+          test -f artifacts/evals/latest/summary.json
+          test -f artifacts/evals/latest/IID_DETECTION_REPORT.md
+          test -f artifacts/evals/latest/OOD_FAMILY_HOLDOUT_REPORT.md
+          test -f artifacts/evals/latest/HARD_NEGATIVE_REPORT.md
+          test -f artifacts/evals/latest/CALIBRATION_REPORT.md
+          test -f artifacts/evals/latest/AGENT_GROUNDEDNESS_REPORT.md
+          test -f artifacts/evals/latest/CRITIC_CHALLENGE_REPORT.md
+          test -f artifacts/evals/latest/INJECTION_REPORT.md
+          test -f artifacts/evals/latest/ABLATION_REPORT.md
+
+  e2e-analyst-workflow:
+    name: E2E Analyst Workflow
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -60,14 +135,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: TypeScript Typecheck
-        run: npm run typecheck
-
-      - name: Production Build
+      - name: Production Frontend Build
         run: npm run build
 
-  benchmark-and-audits:
-    name: Benchmark Evaluations & Normalization Audit
+  docker-build-and-smoke:
+    name: Docker Build & Compose Config
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose Configuration
+        run: docker compose config --quiet
+
+      - name: Build Docker Compose Stack
+        run: docker compose build
+
+  public-repo-hygiene:
+    name: Public Repository Hygiene & Doc Link Integrity
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -83,18 +168,15 @@ jobs:
         with:
           version: "latest"
 
-      - name: Install dependencies
-        run: uv sync --extra dev --extra cloud
+      - name: Check Defensive Boundary
+        run: uv run python scripts/check_defensive_boundary.py
 
-      - name: Generate synthetic dataset & train baselines
+      - name: Check Public Normalization
+        run: uv run python scripts/check_public_normalization.py
+
+      - name: Check Documentation Links
+        run: uv run python scripts/check_doc_links.py
+
+      - name: Verify No Private Files Committed
         run: |
-          uv run python -m tools.synthetic_traffic.generator --seed 42 --output-dir data/fixtures --sample-dir data/samples
-          uv run python -m src.traffic_triage.detection.train --data-dir data/fixtures --output-dir artifacts/model_cards
-
-      - name: Execute Full Benchmark Evaluations
-        run: uv run python -m evals.runners.benchmark --data-dir data/fixtures --output-dir artifacts/evals/latest
-
-      - name: Defensive Boundary & Public Normalization Audit
-        run: |
-          uv run python scripts/check_defensive_boundary.py
-          uv run python scripts/check_public_normalization.py
+          ! git ls-files | grep -E '^BUILD_SPEC\.md$|^\.build/|\.bak$|credentials\.json'

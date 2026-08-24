@@ -82,7 +82,7 @@ class IdentityEvaluator:
 
         for e in events:
             if (
-                e.identity_proof_type == "ed25519_signature"
+                e.identity_proof_type in ("ed25519_signature", "Ed25519", "ed25519")
                 and e.identity_proof_value
                 and e.identity_claim
             ):
@@ -94,7 +94,7 @@ class IdentityEvaluator:
                     canonical_payload = build_canonical_request_payload(
                         source_id_hash=e.source_id_hash,
                         route_template=e.route_template,
-                        timestamp_iso=e.timestamp.isoformat(),
+                        timestamp_iso=e.timestamp,
                     )
                     if verify_signature(pub_key, canonical_payload, e.identity_proof_value):
                         valid_signatures += 1

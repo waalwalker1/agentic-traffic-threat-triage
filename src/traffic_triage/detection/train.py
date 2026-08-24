@@ -1,19 +1,24 @@
 """Reproducible training and model evaluation pipeline."""
 
 import argparse
+from datetime import UTC, datetime
 import json
 from pathlib import Path
+import sys
 from typing import Any, cast
 
 import joblib
 import numpy as np
 import pyarrow.parquet as pq
+import torch
 
 from src.traffic_triage.detection.calibration import ScoreCalibrator
+from src.traffic_triage.detection.model_bundle import ModelManifest, compute_file_sha256
 from src.traffic_triage.detection.pytorch_model import PyTorchThreatDetector
 from src.traffic_triage.detection.supervised import SupervisedThreatClassifier
 from src.traffic_triage.detection.unsupervised import UnsupervisedAnomalyDetector
 from src.traffic_triage.features.extractor import FeatureExtractor, SessionFeatureVector
+from src.traffic_triage.risk.fusion import RiskPolicy
 from src.traffic_triage.schemas.events import TrafficEvent
 from src.traffic_triage.telemetry.sessionizer import TelemetrySessionizer
 
@@ -58,6 +63,7 @@ def load_parquet_events(parquet_path: str) -> list[TrafficEvent]:
 
 
 def run_training_pipeline(data_dir: str, output_dir: str) -> dict[str, Any]:
+    print("[1/6] Loading parquet dataset...", flush=True)
     data_path = Path(data_dir)
     parquet_path = data_path / "traffic_dataset.parquet"
     splits_path = data_path / "splits.json"
@@ -65,25 +71,25 @@ def run_training_pipeline(data_dir: str, output_dir: str) -> dict[str, Any]:
     if not parquet_path.exists() or not splits_path.exists():
         raise FileNotFoundError(f"Missing dataset fixtures in {data_dir}. Run 'make data' first.")
 
+    dataset_sha256 = compute_file_sha256(parquet_path)
     events = load_parquet_events(str(parquet_path))
     with open(splits_path) as f:
         splits = json.load(f)
 
+    print(f"[2/6] Sessionizing {len(events)} events...", flush=True)
     sessionizer = TelemetrySessionizer()
     sessions = sessionizer.sessionize(events)
     extractor = FeatureExtractor()
 
-    # Map session_id -> (feature_vector, ground_truth_label)
+    print(f"[3/6] Extracting features across {len(sessions)} sessions...", flush=True)
     session_data: dict[str, tuple[SessionFeatureVector, int]] = {}
     for s in sessions:
         fv = extractor.extract_features(s.events, s.session_id)
-        # 1 for threat/suspicious, 0 for benign
         is_threat = (
             1 if any(e.synthetic_ground_truth in ("threat", "suspicious") for e in s.events) else 0
         )
         session_data[s.session_id] = (fv, is_threat)
 
-    # Prepare Train / Val / Test arrays
     train_ids = splits["train"]
     val_ids = splits["validation"]
     test_ids = splits["test"]
@@ -99,85 +105,95 @@ def run_training_pipeline(data_dir: str, output_dir: str) -> dict[str, Any]:
     X_test = np.array([session_data[sid][0].to_array() for sid in test_ids if sid in session_data])
 
     print(
-        f"Training set: {X_train.shape[0]} samples, Validation: {X_val.shape[0]}, Test: {X_test.shape[0]}"
+        f"  Training set: {X_train.shape[0]} samples, Validation: {X_val.shape[0]}, Test: {X_test.shape[0]}",
+        flush=True,
     )
 
-    # 1. Unsupervised Anomaly Detector
+    print("[4/6] Fitting detector baselines (Anomaly, Supervised, PyTorch)...", flush=True)
     anomaly_detector = UnsupervisedAnomalyDetector()
     anomaly_detector.fit(X_train)
 
-    # 2. Supervised Threat Classifier
     supervised_clf = SupervisedThreatClassifier()
     supervised_clf.fit(X_train, y_train)
 
-    # 3. PyTorch Threat Detector
     pytorch_detector = PyTorchThreatDetector(input_dim=X_train.shape[1])
-    pyt_metrics = pytorch_detector.train_model(X_train, y_train, epochs=30)
+    pyt_metrics = pytorch_detector.train_model(X_train, y_train, epochs=25)
 
-    # 4. Score Calibrator on Validation set
+    print("[5/6] Fitting Platt score calibrator on validation raw scores...", flush=True)
+    policy = RiskPolicy()
     val_raw_scores = np.array(
-        [supervised_clf.predict_proba(session_data[sid][0]) for sid in val_ids]
+        [
+            float(
+                policy.weights.supervised * supervised_clf.predict_proba(session_data[sid][0])
+                + policy.weights.unsupervised * anomaly_detector.predict_score(session_data[sid][0])
+                + policy.weights.pytorch * pytorch_detector.predict_score(session_data[sid][0])
+            )
+            for sid in val_ids
+        ]
     )
     calibrator = ScoreCalibrator()
     calibrator.fit(val_raw_scores, y_val)
     val_calibrated = np.array([calibrator.calibrate(s) for s in val_raw_scores])
     calib_metrics = ScoreCalibrator.compute_metrics(y_val, val_calibrated)
 
-    # Save artifacts
-    out_path = Path(output_dir)
-    out_path.mkdir(parents=True, exist_ok=True)
+    print("[6/6] Writing ModelBundle artifacts & manifest...", flush=True)
+    current_bundle_dir = Path(output_dir) / "current"
+    current_bundle_dir.mkdir(parents=True, exist_ok=True)
 
-    artifacts = {
-        "anomaly_detector": anomaly_detector,
-        "supervised_classifier": supervised_clf,
-        "pytorch_detector": pytorch_detector,
-        "calibrator": calibrator,
-        "validation_metrics": {
-            "brier_score": calib_metrics.brier_score,
-            "expected_calibration_error": calib_metrics.expected_calibration_error,
-            "pytorch_training_loss": pyt_metrics["final_loss"],
+    joblib.dump(supervised_clf, current_bundle_dir / "supervised.joblib")
+    joblib.dump(anomaly_detector, current_bundle_dir / "isolation_forest.joblib")
+    joblib.dump(calibrator, current_bundle_dir / "calibrator.joblib")
+
+    torch.save(
+        {
+            "model_state_dict": pytorch_detector.model.state_dict(),
+            "mean": torch.tensor(pytorch_detector.mean, dtype=torch.float32),
+            "std": torch.tensor(pytorch_detector.std, dtype=torch.float32),
         },
+        current_bundle_dir / "pytorch_state.pt",
+    )
+
+    artifact_hashes = {
+        "supervised.joblib": compute_file_sha256(current_bundle_dir / "supervised.joblib"),
+        "isolation_forest.joblib": compute_file_sha256(current_bundle_dir / "isolation_forest.joblib"),
+        "calibrator.joblib": compute_file_sha256(current_bundle_dir / "calibrator.joblib"),
+        "pytorch_state.pt": compute_file_sha256(current_bundle_dir / "pytorch_state.pt"),
     }
 
-    joblib.dump(artifacts, out_path / "trained_models.joblib")
+    manifest = ModelManifest(
+        bundle_version="1.0.0",
+        feature_schema_version="1.0.0",
+        risk_policy_version=policy.version,
+        trained_at=datetime.now(UTC).isoformat(),
+        dataset_sha256=dataset_sha256,
+        artifact_sha256=artifact_hashes,
+        supervised_model_version="1.0.0",
+        anomaly_model_version="1.0.0",
+        pytorch_model_version="1.0.0",
+        calibrator_version="1.0.0",
+        calibration_metrics={
+            "brier_score": round(calib_metrics.brier_score, 4),
+            "expected_calibration_error": round(calib_metrics.expected_calibration_error, 4),
+        },
+    )
 
-    # Generate MODEL_CARD.md
-    model_card = f"""# Model Card: Traffic Threat Detection Baseline Ensemble
+    with open(current_bundle_dir / "model_manifest.json", "w") as f:
+        json.dump(manifest.model_dump(mode="json"), f, indent=2)
 
-## Model Summary
-- **Ensemble Components**:
-  1. Rule Baseline (`RuleBaselineDetector_v1.0.0`)
-  2. Unsupervised Anomaly Detector (`IsolationForest` on session feature matrix)
-  3. Supervised Threat Classifier (`HistGradientBoostingClassifier` with StandardScaler)
-  4. Neural Network (`PyTorchThreatDetector` 2-layer MLP with BatchNorm & Dropout)
-  5. Probability Calibrator (`PlattSigmoidCalibrator`)
-  6. Deterministic Policy (`RiskPolicy_v2026.1.0`)
+    print(f"ModelBundle successfully saved to: {current_bundle_dir}", flush=True)
+    print(f"  Brier Score: {calib_metrics.brier_score:.4f}, ECE: {calib_metrics.expected_calibration_error:.4f}", flush=True)
 
-## Training & Validation Setup
-- **Dataset**: Synthetic Traffic Corpus v1.0.0 ({len(events)} events, 150 sessions across 30 scenario families)
-- **Splits**: Group-aware split by session instance (Train: {len(train_ids)} sessions, Val: {len(val_ids)} sessions, Test: {len(test_ids)} sessions)
-- **Validation Brier Score**: {calib_metrics.brier_score:.4f}
-- **Validation ECE**: {calib_metrics.expected_calibration_error:.4f}
-- **PyTorch Training Final Loss**: {pyt_metrics["final_loss"]:.4f}
-
-## Quantitative Performance (Held-out Validation)
-- Calibration Brier Score: {calib_metrics.brier_score:.4f}
-- Expected Calibration Error: {calib_metrics.expected_calibration_error:.4f}
-
-## Limitations & Non-Goals
-- Evaluated solely on synthetic scenario fixtures.
-- Does not represent real-world fraud or bot distributions.
-- Models provide input to the deterministic risk supervisor; generative agents cannot overwrite scores.
-"""
-    with open("docs/MODEL_CARD.md", "w") as f:
-        f.write(model_card)
-
-    print("Model training complete. Artifacts saved.")
-    return cast(dict[str, Any], artifacts["validation_metrics"])
+    return {
+        "dataset_sha256": dataset_sha256,
+        "bundle_dir": str(current_bundle_dir),
+        "brier_score": calib_metrics.brier_score,
+        "ece": calib_metrics.expected_calibration_error,
+        "pytorch_loss": pyt_metrics["final_loss"],
+    }
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train detection models")
+    parser = argparse.ArgumentParser(description="Train baseline models and calibration")
     parser.add_argument("--data-dir", type=str, default="data/fixtures")
     parser.add_argument("--output-dir", type=str, default="artifacts/model_cards")
     args = parser.parse_args()

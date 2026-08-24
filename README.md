@@ -73,31 +73,37 @@ The platform enforces a strict architectural boundary between the **Deterministi
 
 ## Measured Benchmark Performance
 
-*Evaluated on the held-out test split of the 30-scenario synthetic benchmark dataset (2,412 events, 150 sessions).*
+*Evaluated on the synthetic benchmark dataset (3,623 events, 150 sessions across 30 scenario families).*
 
 | Evaluation Dimension | Metric | Measured Value | Benchmark Scope / Note |
 |---|---|---|---|
-| **Detection Quality** | **Precision** | **1.0000** | Zero false positives on benign test cohort |
-| | **Recall** | **0.9000** | High recall on anomalous & scraping patterns |
-| | **F1 Score** | **0.9474** | Best ensemble performance |
-| | **ROC-AUC** | **0.9750** | High discriminative capacity |
-| | **PR-AUC** | **0.9887** | Precision-Recall Area Under Curve |
-| | **False Positive Rate** | **0.0000** | 0.0% FPR across all benign hard-negatives |
-| **Probability Calibration** | **Brier Score** | **0.1144** | Calibrated via Platt sigmoid scaling |
-| | **Expected Calibration Error** | **0.2598** | Uniform 10-bin ECE |
-| **Agent Groundedness** | **Citation Validity Rate** | **100.0%** | All 30/30 citations verified against bundle |
-| | **Unsupported Claim Rate** | **0.0%** | Enforced by deterministic supervisor |
+| **Track A (IID Holdout)** | **Precision** | **1.0000** | Zero false positives on held-out test cohort |
+| | **Recall** | **0.8500** | Detection recall on holdout threats |
+| | **F1 Score** | **0.9189** | Fused multi-signal ensemble |
+| | **ROC-AUC** | **0.9850** | High discriminative capacity |
+| | **PR-AUC** | **0.9930** | Precision-Recall Area Under Curve |
+| | **False Positive Rate** | **0.0000** | 0.0% FPR on standard test partition |
+| **Track B (5-Fold OOD Family Holdout)** | **Mean F1 Score** | **0.9621 ± 0.0415** | Withheld entire scenario families from training |
+| | **Mean Precision** | **1.0000 ± 0.0000** | Consistent zero-FP generalization |
+| | **Mean Recall** | **0.9300 ± 0.0748** | Generalization across unseen threat families |
+| **Multi-Seed Stability (5 Seeds)** | **Mean F1 Score** | **0.9468 ± 0.0248** | Evaluated across seeds [42, 101, 202, 303, 404] |
+| **Hard-Negative Cohort** | **Benign FPR (N=500)** | **0.0200** (10/500) | 95% Wilson CI: [0.0109, 0.0364] |
+| **Probability Calibration** | **Brier Score** | **0.2068** | Platt sigmoid scaling on continuous probability |
+| | **Expected Calibration Error** | **0.3331** | Uniform 10-bin ECE on model probability |
+| **Agent Groundedness** | **Citation Validity Rate** | **100.0%** | All 32/32 citations verified against bundle |
+| | **Unsupported Claim Rate** | **0.0%** | 60/60 factual findings grounded in evidence |
 | | **Score Mutation Rate** | **0.0%** | Supervisor rejects any risk score tampering |
 | **LLM Security** | **Injection Defense Rate** | **100.0%** | 28/28 adversarial injection fixtures defended |
+| | **Critic Catch Rate** | **100.0%** | Invariant validation catches challenge briefs |
 
 ### Baseline Ablation Comparison
-| Model Configuration | F1 Score | Brier Score | Description |
-|---|---|---|---|
-| Rules Only | 0.0952 | 0.4222 | Explainable threshold rules |
-| Unsupervised Anomaly Only | 0.2069 | 0.3987 | Isolation Forest on behavioral features |
-| Supervised Classifier Only | 0.9231 | 0.0576 | HistGradientBoosting classifier |
-| PyTorch MLP Only | 0.9000 | 0.0724 | 2-layer neural network |
-| **Final Fused Risk Policy** | **0.9474** | **0.1144** | **Fused multi-signal ensemble with hard overrides** |
+| Model Configuration | Precision | Recall | F1 Score | Description |
+|---|---|---|---|---|
+| Rules Only | 1.0000 | 0.0500 | 0.0952 | Explainable threshold rules |
+| Supervised Classifier Only | 0.9444 | 0.8500 | 0.8947 | HistGradientBoosting classifier |
+| Unsupervised Anomaly Only | 1.0000 | 0.4000 | 0.5714 | Isolation Forest on behavioral features |
+| PyTorch MLP Only | 1.0000 | 0.9500 | 0.9744 | 2-layer neural network |
+| **Final Fused Risk Policy** | **1.0000** | **0.8500** | **0.9189** | **Fused multi-signal ensemble with hard overrides** |
 
 > [!NOTE]
 > Evaluation results reported here are measured on the repository's synthetic benchmark dataset and should not be interpreted as real-world fraud-detection performance.
@@ -116,124 +122,53 @@ The platform enforces a strict architectural boundary between the **Deterministi
 ## Quickstart
 
 ### 1. Prerequisites
-- Python 3.12+ (tested on Python 3.13)
+- Python 3.12+
 - Node.js 20+ and npm
-- `uv` package manager (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
 
 ### 2. Installation
 ```bash
-# Clone the repository
 git clone https://github.com/waalwalker1/agentic-traffic-threat-triage.git
 cd agentic-traffic-threat-triage
-
-# Install Python and Node dependencies
-make setup
+uv venv --python 3.12
+uv sync --extra dev --extra cloud
+cd apps/web && npm ci && cd ../..
 ```
 
-### 3. Generate Dataset & Train Baselines
+### 3. Generate Synthetic Data & Run Training
 ```bash
-# Generate deterministic 30-scenario synthetic corpus
 make data
-
-# Train detection models and calibration layer
 make train
 ```
 
-### 4. Run Offline CLI Triage Demo
+### 4. Run Full Evaluation Benchmark Suite
 ```bash
-make demo
-```
-
-### 5. Start API & Analyst Dashboard
-```bash
-# Start FastAPI backend (port 8000) and React dashboard (port 3000)
-make dev
-```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
----
-
-## Testing & Quality Verification
-
-```bash
-# Run unit and protocol tests
-make test
-
-# Run backend integration tests
-make test-integration
-
-# Run adversarial prompt injection test suite
-make red-team
-
-# Run full evaluation benchmark
 make eval
-
-# Run linters and static type checking
-make lint
-make typecheck
-
-# Execute complete release verification check
-make release-check
 ```
+
+### 5. Launch API Service & Analyst Console
+```bash
+# Terminal 1: FastAPI Service
+uv run python -m apps.api.main
+
+# Terminal 2: React Analyst Dashboard
+cd apps/web && npm run dev
+```
+
+Visit the dashboard at `http://localhost:5173`.
 
 ---
 
-## Repository Layout
+## Documentation Links
 
-```text
-.
-├── apps/
-│   ├── api/                   # FastAPI backend service
-│   └── web/                   # React 18 + TypeScript + Vite analyst dashboard
-├── src/traffic_triage/
-│   ├── schemas/               # Canonical versioned Pydantic contracts
-│   ├── telemetry/             # Sessionization and stream aggregation
-│   ├── features/              # Deterministic 32-feature extraction pipeline
-│   ├── identity/              # Signed Ed25519 identity fixtures & trust model
-│   ├── mcp_activity/          # Model Context Protocol sequence semantics analyzer
-│   ├── detection/             # Multi-model baselines (Rules, IsolationForest, HGB, PyTorch)
-│   ├── risk/                  # Deterministic calibrated RiskPolicy fusion
-│   ├── evidence/              # CuratedEvidenceBundle & EvidenceItem builder
-│   ├── agents/                # 6-role multi-agent SOC crew & DeterministicSupervisor
-│   ├── llm/                   # Provider abstractions (DeterministicLocal, Vertex AI, Bedrock)
-│   ├── persistence/           # DuckDB analytical repository
-│   ├── observability/         # OpenTelemetry tracing & Prometheus metrics
-│   └── security/              # Telemetry sanitizer, validator & defensive boundary
-├── tools/
-│   └── synthetic_traffic/     # Seeded 30-scenario synthetic traffic generator
-├── data/
-│   ├── fixtures/              # Parquet dataset fixtures and group-aware split manifest
-│   └── samples/               # Compact sample events JSON
-├── evals/
-│   └── runners/               # Benchmark evaluation runner & metrics generator
-├── artifacts/
-│   ├── evals/latest/          # Benchmark reports (Detection, Groundedness, Injection, Ablations)
-│   └── model_cards/           # Serialized trained model weights & metadata
-├── docs/                      # Comprehensive technical architecture & security documentation
-├── tests/
-│   ├── unit/                  # Unit tests for schemas, features, models, and identity
-│   ├── integration/           # FastAPI service integration tests
-│   ├── security/              # 28 prompt-injection and defensive boundary tests
-│   └── e2e/                   # End-to-end workflow verification tests
-├── pyproject.toml             # Python build configuration & dependencies
-├── package.json               # Frontend Node package configuration
-├── Makefile                   # Canonical developer command interface
-├── docker-compose.yml         # Containerized local runtime deployment
-├── LICENSE                    # MIT License
-├── SECURITY.md                # Security policy & vulnerability reporting
-└── CONTRIBUTING.md            # Contribution guidelines
-```
-
----
-
-## Known Limitations
-
-1. **Synthetic Telemetry Baseline**: The models and agents are evaluated on structured synthetic scenario distributions. Real-world internet traffic exhibits higher variance, browser quirks, and dynamic network conditions.
-2. **Deterministic Local Mode**: By default, the system runs with `DeterministicLocalProvider` to enable zero-credential local evaluation. Optional cloud adapters (Vertex AI, AWS Bedrock) require external credentials.
-3. **Defensive Research Scope**: This platform is designed for research, triage acceleration, and forensic investigation; it does not replace automated real-time edge blocking appliances.
+- [Architecture & Invariants](docs/ARCHITECTURE.md)
+- [Evidence Bundle Architecture](docs/EVALUATION.md)
+- [Dataset Card](data/DATASET_CARD.md)
+- [Integration Status Matrix](docs/INTEGRATION_STATUS.md)
+- [Security & Threat Model](docs/SECURITY.md)
+- [Release Validation Report](docs/RELEASE_VALIDATION.md)
 
 ---
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

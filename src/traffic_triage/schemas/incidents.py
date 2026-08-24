@@ -40,6 +40,29 @@ class IntentHypothesis(BaseModel):
     reasoning: str = Field(..., description="Logical explanation linking evidence to intent")
 
 
+class NumericAssertion(BaseModel):
+    """A specific numerical claim made in a brief that must match deterministic evidence."""
+
+    metric_name: str = Field(..., description="Name of feature or evidence metric (e.g. requests_per_second)")
+    claimed_value: float = Field(..., description="Claimed numeric value")
+    tolerance: float = Field(default=0.05, description="Relative or absolute matching tolerance")
+    verified_against_evidence_id: str | None = Field(default=None, description="Matched EvidenceItem ID")
+    is_verified: bool = Field(default=False, description="Whether assertion matched deterministic observation")
+
+
+class GroundedFinding(BaseModel):
+    """An explicit factual claim strictly grounded in one or more deterministic EvidenceItems."""
+
+    finding: str = Field(..., description="Factual discovery text")
+    evidence_ids: list[str] = Field(
+        default_factory=list, description="Mandatory citations to deterministic evidence items"
+    )
+    numeric_assertions: list[NumericAssertion] = Field(
+        default_factory=list, description="Validated numerical statements"
+    )
+    is_factual: bool = Field(default=True, description="True for factual assertions requiring evidence")
+
+
 class CriticReview(BaseModel):
     """Audit verdict from the Evidence Critic agent."""
 
@@ -53,6 +76,12 @@ class CriticReview(BaseModel):
     score_mutation_detected: bool = Field(
         default=False, description="Whether LLM attempted to mutate risk score"
     )
+    unsupported_claim_detected: bool = Field(
+        default=False, description="Whether factual claims lack supporting evidence IDs"
+    )
+    numeric_mismatch_detected: bool = Field(
+        default=False, description="Whether numerical assertions disagree with evidence"
+    )
     prompt_injection_flags: list[str] = Field(
         default_factory=list, description="Detected injection leakages"
     )
@@ -64,7 +93,7 @@ class IncidentBrief(BaseModel):
     incident_id: str = Field(..., description="Unique incident identifier")
     session_ids: list[str] = Field(..., description="Associated session IDs")
     risk_score: float = Field(
-        ..., ge=0.0, le=1.0, description="Deterministic risk score (supervisor protected)"
+        ..., ge=0.0, le=1.0, description="Deterministic policy risk score (supervisor protected)"
     )
     risk_band: RiskBand = Field(..., description="Discrete risk category")
     identity_assessment: str = Field(..., description="Assessment of actor identity confidence")
@@ -74,7 +103,12 @@ class IncidentBrief(BaseModel):
     mcp_activity_assessment: str | None = Field(
         default=None, description="Contextual MCP analysis if applicable"
     )
-    key_findings: list[str] = Field(..., description="Bullet list of key factual discoveries")
+    grounded_findings: list[GroundedFinding] = Field(
+        default_factory=list, description="Factual findings with strict evidence citations"
+    )
+    key_findings: list[str] = Field(
+        default_factory=list, description="Bullet list of key factual discoveries (string view)"
+    )
     evidence_citations: list[str] = Field(
         ..., description="Comprehensive list of cited EvidenceItem IDs"
     )

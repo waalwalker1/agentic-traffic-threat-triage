@@ -1,0 +1,61 @@
+{
+  "version": "1.0.0",
+  "description": "5-fold scenario-family holdout partition for out-of-distribution evaluation.",
+  "folds": [
+    {
+      "fold_id": 1,
+      "held_out_families": [
+        "search_crawler",
+        "qa_automation",
+        "claimed_ai_no_proof",
+        "catalog_scraping_high_volume",
+        "mcp_repeated_enumeration",
+        "injection_user_agent"
+      ]
+    },
+    {
+      "fold_id": 2,
+      "held_out_families": [
+        "verified_ai_fetcher",
+        "mcp_discovery_benign",
+        "identity_mismatch",
+        "distributed_collection",
+        "mcp_identity_shift",
+        "injection_custom_header"
+      ]
+    },
+    {
+      "fold_id": 3,
+      "held_out_families": [
+        "monitoring_burst",
+        "mcp_tool_use_benign",
+        "rotating_claimed_identity",
+        "repetitive_login_failure",
+        "mcp_abnormal_sequence",
+        "injection_ignore_evidence"
+      ]
+    },
+    {
+      "fold_id": 4,
+      "held_out_families": [
+        "human_browsing",
+        "cryptographic_verified_agent",
+        "verified_identity_behavior_shift",
+        "inventory_checkout_timing_abuse",
+        "mcp_discovery_only_abandoned",
+        "injection_fake_evidence_id"
+      ]
+    },
+    {
+      "fold_id": 5,
+      "held_out_families": [
+        "mobile_app_api",
+        "mcp_normal_workflow",
+        "excessive_api_enumeration",
+        "low_and_slow_scraping",
+        "agentic_browser_abuse",
+        "injection_unicode_control"
+      ]
+    }
+  ]
+}

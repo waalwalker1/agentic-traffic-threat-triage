@@ -20,16 +20,15 @@ class VertexAIProvider:
         model_name: str = "gemini-1.5-pro",
     ) -> None:
         self.project_id = project_id or os.getenv("GCP_PROJECT_ID", "demo-project")
-        self.location = location
-        self.model_name = model_name
+        self.location = os.getenv("GCP_LOCATION", location)
+        self.model_name = os.getenv("VERTEX_MODEL_NAME", model_name)
 
     async def generate_structured(
         self,
         prompt: StructuredPrompt,
         response_schema: type[T],
     ) -> T:
-        """Call Vertex AI Gemini model. In offline/mock mode or when credentials missing, raises or falls back."""
-        # Check if actual GCP credentials and library are present
+        """Call Vertex AI Gemini model. In offline/mock mode or when credentials missing, raises ConnectionError."""
         if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS") and not os.getenv("GCP_PROJECT_ID"):
             raise ConnectionError(
                 "VertexAIProvider requires GCP_PROJECT_ID and GOOGLE_APPLICATION_CREDENTIALS in environment."
@@ -38,7 +37,7 @@ class VertexAIProvider:
         try:
             from google import genai
 
-            client = genai.Client(project=self.project_id, location=self.location)
+            client = genai.Client(vertexai=True, project=self.project_id, location=self.location)
             response = client.models.generate_content(
                 model=self.model_name,
                 contents=[prompt.system_instruction, prompt.user_context],

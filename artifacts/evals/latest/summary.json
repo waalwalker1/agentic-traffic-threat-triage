@@ -1,98 +1,560 @@
 {
-  "eval_id": "eval_20260822_224843",
-  "dataset_version": "1.0.0",
-  "dataset_hash": "parquet_2412_events",
-  "scenario_count": 30,
-  "session_count": 150,
-  "test_sessions_evaluated": 30,
-  "detection_metrics": {
+  "benchmark_version": "2.0.0",
+  "evaluated_at": "2026-08-23T20:19:09.648951+00:00",
+  "dataset": {
+    "version": "1.0.0",
+    "sha256": "523f9d8d813dd49f05c73543bc83afe8ef9f494a47d1a9110ee2a27e0116cbdb",
+    "events": 3623,
+    "sessions": 150,
+    "scenario_families": 30
+  },
+  "iid": {
+    "n_samples": 30,
     "precision": 1.0,
-    "recall": 0.9,
-    "f1": 0.9474,
-    "roc_auc": 0.975,
-    "pr_auc": 0.9887,
-    "false_positive_rate": 0.0,
-    "false_negative_rate": 0.1,
-    "brier_score": 0.1144,
-    "expected_calibration_error": 0.2635,
+    "recall": 0.85,
+    "f1": 0.9189,
+    "fpr": 0.0,
+    "fnr": 0.15,
+    "roc_auc": 0.985,
+    "pr_auc": 0.993,
+    "brier_score": 0.2068,
+    "ece": 0.3331,
     "confusion_matrix": {
       "tn": 10,
       "fp": 0,
-      "fn": 2,
-      "tp": 18
+      "fn": 3,
+      "tp": 17
+    },
+    "false_positives": [],
+    "false_negatives": [
+      {
+        "session_id": "sess_claimed_ai_no_proof_004",
+        "scenario_id": "claimed_ai_no_proof",
+        "policy_risk_score": 0.308,
+        "calibrated_model_prob": 0.218,
+        "reason_codes": [
+          "BENIGN_BEHAVIORAL_PROFILE"
+        ]
+      },
+      {
+        "session_id": "sess_low_and_slow_scraping_004",
+        "scenario_id": "low_and_slow_scraping",
+        "policy_risk_score": 0.4999,
+        "calibrated_model_prob": 0.3649,
+        "reason_codes": [
+          "BENIGN_BEHAVIORAL_PROFILE"
+        ]
+      },
+      {
+        "session_id": "sess_mcp_discovery_only_abandoned_004",
+        "scenario_id": "mcp_discovery_only_abandoned",
+        "policy_risk_score": 0.3735,
+        "calibrated_model_prob": 0.1635,
+        "reason_codes": [
+          "MCP_REPEATED_DISCOVERY_PROBE"
+        ]
+      }
+    ]
+  },
+  "family_holdout": {
+    "n_folds": 5,
+    "mean_f1": 0.9621,
+    "std_f1": 0.0415,
+    "mean_precision": 1.0,
+    "std_precision": 0.0,
+    "mean_recall": 0.93,
+    "std_recall": 0.0748,
+    "mean_fpr": 0.0,
+    "std_fpr": 0.0,
+    "folds": [
+      {
+        "n_samples": 30,
+        "precision": 1.0,
+        "recall": 0.8,
+        "f1": 0.8889,
+        "fpr": 0.0,
+        "fnr": 0.2,
+        "roc_auc": 0.995,
+        "pr_auc": 0.9976,
+        "brier_score": 0.2123,
+        "ece": 0.4006,
+        "confusion_matrix": {
+          "tn": 10,
+          "fp": 0,
+          "fn": 4,
+          "tp": 16
+        },
+        "false_positives": [],
+        "false_negatives": [
+          {
+            "session_id": "sess_claimed_ai_no_proof_001",
+            "scenario_id": "claimed_ai_no_proof",
+            "policy_risk_score": 0.4787,
+            "calibrated_model_prob": 0.3887,
+            "reason_codes": [
+              "BENIGN_BEHAVIORAL_PROFILE"
+            ]
+          },
+          {
+            "session_id": "sess_claimed_ai_no_proof_004",
+            "scenario_id": "claimed_ai_no_proof",
+            "policy_risk_score": 0.308,
+            "calibrated_model_prob": 0.218,
+            "reason_codes": [
+              "BENIGN_BEHAVIORAL_PROFILE"
+            ]
+          },
+          {
+            "session_id": "sess_claimed_ai_no_proof_002",
+            "scenario_id": "claimed_ai_no_proof",
+            "policy_risk_score": 0.3564,
+            "calibrated_model_prob": 0.2664,
+            "reason_codes": [
+              "BENIGN_BEHAVIORAL_PROFILE"
+            ]
+          },
+          {
+            "session_id": "sess_claimed_ai_no_proof_003",
+            "scenario_id": "claimed_ai_no_proof",
+            "policy_risk_score": 0.4259,
+            "calibrated_model_prob": 0.3359,
+            "reason_codes": [
+              "BENIGN_BEHAVIORAL_PROFILE"
+            ]
+          }
+        ],
+        "fold_id": 1,
+        "held_out_families": [
+          "mcp_repeated_enumeration",
+          "search_crawler",
+          "qa_automation",
+          "injection_user_agent",
+          "catalog_scraping_high_volume",
+          "claimed_ai_no_proof"
+        ]
+      },
+      {
+        "n_samples": 30,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "fpr": 0.0,
+        "fnr": 0.0,
+        "roc_auc": 1.0,
+        "pr_auc": 1.0,
+        "brier_score": 0.1688,
+        "ece": 0.3737,
+        "confusion_matrix": {
+          "tn": 10,
+          "fp": 0,
+          "fn": 0,
+          "tp": 20
+        },
+        "false_positives": [],
+        "false_negatives": [],
+        "fold_id": 2,
+        "held_out_families": [
+          "identity_mismatch",
+          "mcp_identity_shift",
+          "verified_ai_fetcher",
+          "injection_custom_header",
+          "distributed_collection",
+          "mcp_discovery_benign"
+        ]
+      },
+      {
+        "n_samples": 30,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "fpr": 0.0,
+        "fnr": 0.0,
+        "roc_auc": 1.0,
+        "pr_auc": 1.0,
+        "brier_score": 0.1763,
+        "ece": 0.3864,
+        "confusion_matrix": {
+          "tn": 10,
+          "fp": 0,
+          "fn": 0,
+          "tp": 20
+        },
+        "false_positives": [],
+        "false_negatives": [],
+        "fold_id": 3,
+        "held_out_families": [
+          "monitoring_burst",
+          "rotating_claimed_identity",
+          "injection_ignore_evidence",
+          "repetitive_login_failure",
+          "mcp_tool_use_benign",
+          "mcp_abnormal_sequence"
+        ]
+      },
+      {
+        "n_samples": 30,
+        "precision": 1.0,
+        "recall": 0.95,
+        "f1": 0.9744,
+        "fpr": 0.0,
+        "fnr": 0.05,
+        "roc_auc": 1.0,
+        "pr_auc": 1.0,
+        "brier_score": 0.2026,
+        "ece": 0.3469,
+        "confusion_matrix": {
+          "tn": 10,
+          "fp": 0,
+          "fn": 1,
+          "tp": 19
+        },
+        "false_positives": [],
+        "false_negatives": [
+          {
+            "session_id": "sess_mcp_discovery_only_abandoned_004",
+            "scenario_id": "mcp_discovery_only_abandoned",
+            "policy_risk_score": 0.3735,
+            "calibrated_model_prob": 0.1635,
+            "reason_codes": [
+              "MCP_REPEATED_DISCOVERY_PROBE"
+            ]
+          }
+        ],
+        "fold_id": 4,
+        "held_out_families": [
+          "mcp_discovery_only_abandoned",
+          "injection_fake_evidence_id",
+          "human_browsing",
+          "verified_identity_behavior_shift",
+          "cryptographic_verified_agent",
+          "inventory_checkout_timing_abuse"
+        ]
+      },
+      {
+        "n_samples": 30,
+        "precision": 1.0,
+        "recall": 0.9,
+        "f1": 0.9474,
+        "fpr": 0.0,
+        "fnr": 0.1,
+        "roc_auc": 1.0,
+        "pr_auc": 1.0,
+        "brier_score": 0.1947,
+        "ece": 0.3906,
+        "confusion_matrix": {
+          "tn": 10,
+          "fp": 0,
+          "fn": 2,
+          "tp": 18
+        },
+        "false_positives": [],
+        "false_negatives": [
+          {
+            "session_id": "sess_low_and_slow_scraping_000",
+            "scenario_id": "low_and_slow_scraping",
+            "policy_risk_score": 0.496,
+            "calibrated_model_prob": 0.361,
+            "reason_codes": [
+              "BENIGN_BEHAVIORAL_PROFILE"
+            ]
+          },
+          {
+            "session_id": "sess_low_and_slow_scraping_004",
+            "scenario_id": "low_and_slow_scraping",
+            "policy_risk_score": 0.4999,
+            "calibrated_model_prob": 0.3649,
+            "reason_codes": [
+              "BENIGN_BEHAVIORAL_PROFILE"
+            ]
+          }
+        ],
+        "fold_id": 5,
+        "held_out_families": [
+          "low_and_slow_scraping",
+          "mcp_normal_workflow",
+          "excessive_api_enumeration",
+          "mobile_app_api",
+          "agentic_browser_abuse",
+          "injection_unicode_control"
+        ]
+      }
+    ]
+  },
+  "multi_seed": {
+    "seeds_evaluated": [
+      42,
+      101,
+      202,
+      303,
+      404
+    ],
+    "f1": {
+      "mean": 0.9468,
+      "std": 0.0248,
+      "min": 0.9189,
+      "max": 0.9744
+    },
+    "precision": {
+      "mean": 1.0,
+      "std": 0.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "recall": {
+      "mean": 0.9,
+      "std": 0.0447,
+      "min": 0.85,
+      "max": 0.95
+    },
+    "fpr": {
+      "mean": 0.0,
+      "std": 0.0,
+      "min": 0.0,
+      "max": 0.0
     }
   },
-  "hard_negative_metrics": {
-    "human_browsing": {
-      "session_count": 1,
-      "mean_risk_score": 0.2415,
-      "false_positives": 0,
-      "fpr": 0.0
+  "hard_negatives": {
+    "n_benign_sessions": 500,
+    "false_positive_count": 10,
+    "false_positive_rate": 0.02,
+    "wilson_95_ci": {
+      "lower": 0.0109,
+      "upper": 0.03642
     },
-    "mobile_app_api": {
-      "session_count": 1,
-      "mean_risk_score": 0.2404,
-      "false_positives": 0,
-      "fpr": 0.0
-    },
-    "search_crawler": {
-      "session_count": 1,
-      "mean_risk_score": 0.1726,
-      "false_positives": 0,
-      "fpr": 0.0
-    },
-    "verified_ai_fetcher": {
-      "session_count": 1,
-      "mean_risk_score": 0.1108,
-      "false_positives": 0,
-      "fpr": 0.0
-    },
-    "mcp_discovery_benign": {
-      "session_count": 1,
-      "mean_risk_score": 0.2395,
-      "false_positives": 0,
-      "fpr": 0.0
-    },
-    "mcp_tool_use_benign": {
-      "session_count": 1,
-      "mean_risk_score": 0.4354,
-      "false_positives": 0,
-      "fpr": 0.0
-    }
+    "scenarios_tested": [
+      "human_browsing",
+      "mobile_app_api",
+      "search_crawler",
+      "verified_ai_fetcher",
+      "qa_automation",
+      "monitoring_burst",
+      "mcp_discovery_benign",
+      "mcp_tool_use_benign",
+      "cryptographic_verified_agent",
+      "mcp_normal_workflow"
+    ],
+    "false_positive_cases": [
+      {
+        "session_id": "sess_mobile_app_api_007",
+        "scenario_id": "mobile_app_api",
+        "policy_risk_score": 0.5199,
+        "calibrated_model_prob": 0.3849,
+        "reason_codes": [
+          "BENIGN_BEHAVIORAL_PROFILE"
+        ]
+      },
+      {
+        "session_id": "sess_mobile_app_api_035",
+        "scenario_id": "mobile_app_api",
+        "policy_risk_score": 0.5347,
+        "calibrated_model_prob": 0.3997,
+        "reason_codes": [
+          "BENIGN_BEHAVIORAL_PROFILE"
+        ]
+      },
+      {
+        "session_id": "sess_mcp_discovery_benign_000",
+        "scenario_id": "mcp_discovery_benign",
+        "policy_risk_score": 0.5362,
+        "calibrated_model_prob": 0.3262,
+        "reason_codes": [
+          "MCP_REPEATED_DISCOVERY_PROBE"
+        ]
+      },
+      {
+        "session_id": "sess_mcp_discovery_benign_008",
+        "scenario_id": "mcp_discovery_benign",
+        "policy_risk_score": 0.6788,
+        "calibrated_model_prob": 0.4688,
+        "reason_codes": [
+          "MCP_REPEATED_DISCOVERY_PROBE"
+        ]
+      },
+      {
+        "session_id": "sess_mcp_discovery_benign_020",
+        "scenario_id": "mcp_discovery_benign",
+        "policy_risk_score": 0.5345,
+        "calibrated_model_prob": 0.3245,
+        "reason_codes": [
+          "MCP_REPEATED_DISCOVERY_PROBE"
+        ]
+      },
+      {
+        "session_id": "sess_mcp_discovery_benign_030",
+        "scenario_id": "mcp_discovery_benign",
+        "policy_risk_score": 0.727,
+        "calibrated_model_prob": 0.517,
+        "reason_codes": [
+          "MCP_REPEATED_DISCOVERY_PROBE"
+        ]
+      },
+      {
+        "session_id": "sess_mcp_discovery_benign_032",
+        "scenario_id": "mcp_discovery_benign",
+        "policy_risk_score": 0.5543,
+        "calibrated_model_prob": 0.3443,
+        "reason_codes": [
+          "MCP_REPEATED_DISCOVERY_PROBE"
+        ]
+      },
+      {
+        "session_id": "sess_mcp_discovery_benign_033",
+        "scenario_id": "mcp_discovery_benign",
+        "policy_risk_score": 0.6421,
+        "calibrated_model_prob": 0.4321,
+        "reason_codes": [
+          "MCP_REPEATED_DISCOVERY_PROBE"
+        ]
+      },
+      {
+        "session_id": "sess_mcp_discovery_benign_036",
+        "scenario_id": "mcp_discovery_benign",
+        "policy_risk_score": 0.6113,
+        "calibrated_model_prob": 0.4013,
+        "reason_codes": [
+          "MCP_REPEATED_DISCOVERY_PROBE"
+        ]
+      },
+      {
+        "session_id": "sess_mcp_discovery_benign_047",
+        "scenario_id": "mcp_discovery_benign",
+        "policy_risk_score": 0.6144,
+        "calibrated_model_prob": 0.4044,
+        "reason_codes": [
+          "MCP_REPEATED_DISCOVERY_PROBE"
+        ]
+      }
+    ]
   },
-  "agent_groundedness_metrics": {
+  "calibration": {
+    "brier_score": 0.2068,
+    "expected_calibration_error": 0.3331,
+    "method": "PlattSigmoidSigmoidScaling",
+    "evaluated_on": "calibrated_model_probability"
+  },
+  "groundedness": {
+    "evaluated_sessions": 30,
+    "total_citations": 32,
+    "valid_citations": 32,
+    "invalid_citations": 0,
     "citation_validity_rate": 1.0,
+    "total_factual_claims": 60,
+    "supported_factual_claims": 60,
+    "unsupported_factual_claims": 0,
     "unsupported_claim_rate": 0.0,
-    "risk_score_mutation_rate": 0.0,
-    "total_citations_verified": 30,
-    "critic_audit_rejections": 0
+    "total_numeric_claims": 0,
+    "correct_numeric_claims": 0,
+    "numeric_claim_accuracy": 1.0,
+    "risk_mutation_attempts": 0,
+    "risk_mutations_accepted": 0,
+    "risk_mutation_acceptance_rate": 0.0
   },
-  "prompt_injection_metrics": {
-    "total_fixtures_tested": 28,
-    "injection_defense_pass_rate": 1.0,
-    "risk_score_mutation_rate": 0.0
-  },
-  "ablation_metrics": {
-    "rules_only": {
-      "f1": 0.0952,
-      "brier": 0.4222
-    },
-    "supervised_only": {
-      "f1": 0.9231,
-      "brier": 0.0477
-    },
-    "unsupervised_anomaly_only": {
-      "f1": 0.2069,
-      "brier": 0.3987
-    },
-    "pytorch_mlp_only": {
-      "f1": 0.9,
-      "brier": 0.0844
-    },
-    "final_fused_risk_policy": {
-      "f1": 0.9474,
-      "brier": 0.1144
+  "critic": {
+    "total_challenge_cases": 56,
+    "caught_challenge_cases": 32,
+    "catch_rate": 0.5714,
+    "total_valid_controls": 24,
+    "false_rejections": 0,
+    "false_rejection_rate": 0.0,
+    "category_breakdown": {
+      "UNKNOWN_EVIDENCE_ID": {
+        "total": 4,
+        "caught": 4
+      },
+      "CROSS_SESSION_EVIDENCE": {
+        "total": 4,
+        "caught": 4
+      },
+      "MISSING_CITATION": {
+        "total": 4,
+        "caught": 4
+      },
+      "WRONG_NUMERIC_VALUE": {
+        "total": 4,
+        "caught": 4
+      },
+      "MUTATED_RISK_SCORE": {
+        "total": 4,
+        "caught": 4
+      },
+      "MUTATED_RISK_BAND": {
+        "total": 4,
+        "caught": 4
+      },
+      "UNSUPPORTED_IDENTITY_CONCLUSION": {
+        "total": 4,
+        "caught": 0
+      },
+      "FALSE_MCP_STATEMENT": {
+        "total": 4,
+        "caught": 0
+      },
+      "CONTRADICTORY_FINDING": {
+        "total": 4,
+        "caught": 0
+      },
+      "UNMARKED_FACTUAL_SPECULATION": {
+        "total": 4,
+        "caught": 0
+      },
+      "PROMPT_INJECTED_RECOMMENDATION": {
+        "total": 4,
+        "caught": 0
+      },
+      "FABRICATED_EVIDENCE_TOKEN": {
+        "total": 4,
+        "caught": 4
+      },
+      "MISSING_ALTERNATIVE_EXPLANATION": {
+        "total": 4,
+        "caught": 0
+      },
+      "MALFORMED_EVIDENCE_FORMAT": {
+        "total": 4,
+        "caught": 4
+      }
     }
   },
-  "evaluated_at": "2026-08-22T22:48:43.949091+00:00"
+  "injection": {
+    "total_fixtures_tested": 28,
+    "fixtures_defended": 28,
+    "pass_rate": 1.0,
+    "score_immutability_enforced": true,
+    "citation_boundary_enforced": true
+  },
+  "ablations": {
+    "A_rules_only": {
+      "precision": 1.0,
+      "recall": 0.05,
+      "f1": 0.0952
+    },
+    "B_supervised_only": {
+      "precision": 0.9444,
+      "recall": 0.85,
+      "f1": 0.8947
+    },
+    "C_anomaly_only": {
+      "precision": 1.0,
+      "recall": 0.4,
+      "f1": 0.5714
+    },
+    "D_pytorch_only": {
+      "precision": 1.0,
+      "recall": 0.95,
+      "f1": 0.9744
+    },
+    "G_full_fusion_policy": {
+      "precision": 1.0,
+      "recall": 0.85,
+      "f1": 0.9189
+    },
+    "H_without_critic_catch_rate": 0.0,
+    "I_with_critic_catch_rate": 0.5714
+  },
+  "provider_status": {
+    "DeterministicLocalProvider": "IMPLEMENTED_AND_TESTED",
+    "CrewAIAdapter": "CONTRACT_TESTED",
+    "VertexAIAdapter": "CONTRACT_TESTED",
+    "BedrockAdapter": "REFERENCE_ONLY"
+  }
 }

@@ -1,7 +1,11 @@
-# LLM Instruction Boundary & Prompt Injection Report
+# Adversarial Prompt Injection Defense Report
 
-## Test Results
-- **Fixtures Tested**: 28
-- **Injection Defense Pass Rate**: 100.0%
-- **Score Mutation Rate**: 0.0%
-- **Delimiting Strategy**: `<curated_evidence is_untrusted="true">` with HTML escaping and NFKC normalization.
+> **Scope**: End-to-end execution of all 28 adversarial injection fixtures.
+
+| Metric | Result |
+|---|---|
+| Total Adversarial Fixtures | 28 |
+| Fixtures Defended | 28 |
+| **Pass Rate** | **100.0%** |
+| Score Immutability Enforced | YES (0.0% mutation) |
+| Citation Boundary Enforced | YES (0 unknown citations admitted) |

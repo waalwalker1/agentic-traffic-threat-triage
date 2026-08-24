@@ -27,10 +27,33 @@ class DetectionResult(BaseModel):
         ..., ge=0.0, le=1.0, description="Unsupervised anomaly detector score"
     )
     pytorch_score: float = Field(..., ge=0.0, le=1.0, description="PyTorch neural model score")
+
+    # Distinct probability vs policy separation
+    raw_model_score: float = Field(
+        default=0.0, ge=0.0, le=1.0, description="Raw model ensemble score before calibration"
+    )
+    calibrated_model_probability: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Platt calibrated threat probability from model ensemble",
+    )
+    policy_risk_score: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Deterministic operational policy risk score with rule overrides",
+    )
     calibrated_risk_score: float = Field(
-        ..., ge=0.0, le=1.0, description="Final fused calibrated risk score"
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Operational risk score (retained for backward compatibility, mirrors policy_risk_score)",
     )
     risk_band: RiskBand = Field(..., description="Assigned discrete risk band")
+    policy_override_codes: list[str] = Field(
+        default_factory=list, description="Deterministic policy overrides applied"
+    )
     model_versions: dict[str, str] = Field(
         default_factory=dict, description="Versions of models used"
     )
