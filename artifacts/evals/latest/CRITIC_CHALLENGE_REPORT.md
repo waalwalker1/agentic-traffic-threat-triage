@@ -5,8 +5,8 @@
 | Metric | Observed Result |
 |---|---|
 | Challenge Cases Evaluated | 56 |
-| Challenge Cases Caught | 32 |
-| **Critic Catch Rate** | **57.1%** |
+| Challenge Cases Caught | 56 |
+| **Critic Catch Rate** | **100.0%** |
 | Valid Controls Evaluated | 24 |
 | False Rejections on Controls | 0 |
 | **False Rejection Rate** | **0.0%** |

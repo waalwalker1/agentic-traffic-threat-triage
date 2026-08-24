@@ -10,6 +10,7 @@
 | Total Factual Claims | 60 |
 | Supported Factual Claims | 60 |
 | Unsupported Claim Rate | 0.0% |
-| Total Numeric Claims | 0 |
+| Total Numeric Claims | 5 |
 | Numeric Claim Accuracy | 100.0% |
-| Risk Mutation Attempts Accepted | 0 (0.0%) |
+| Normal Runtime Score Mutation Rate | 0.0% |
+| Adversarial Challenge Enforcement Rate | 100.0% (8/8 rejected) |

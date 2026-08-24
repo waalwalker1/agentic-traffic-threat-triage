@@ -9,8 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Copy dependency definition
-COPY pyproject.toml README.md ./
-RUN uv sync --frozen --no-dev || uv sync --no-dev
+COPY pyproject.toml uv.lock README.md ./
+RUN uv sync --frozen --no-dev
 
 # Copy application source
 COPY src/ /app/src/

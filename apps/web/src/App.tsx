@@ -12,7 +12,7 @@ import {
   Database,
 } from 'lucide-react';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = (import.meta as any).env?.VITE_API_BASE || '';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'incidents' | 'evals'>('overview');

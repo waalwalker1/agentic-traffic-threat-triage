@@ -7,10 +7,17 @@ from typing import Any
 import structlog
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SpanProcessor
+
+_TRACER_PROVIDER: TracerProvider | None = None
 
 
-def setup_observability(service_name: str = "agentic-traffic-threat-triage") -> None:
+def setup_observability(
+    service_name: str = "agentic-traffic-threat-triage",
+    span_processor: SpanProcessor | None = None,
+) -> TracerProvider:
     """Configures structured logging and OpenTelemetry tracing provider."""
+    global _TRACER_PROVIDER
     # Structlog configuration
     structlog.configure(
         processors=[
@@ -26,7 +33,11 @@ def setup_observability(service_name: str = "agentic-traffic-threat-triage") -> 
 
     # OpenTelemetry Tracer setup
     provider = TracerProvider()
+    if span_processor is not None:
+        provider.add_span_processor(span_processor)
     trace.set_tracer_provider(provider)
+    _TRACER_PROVIDER = provider
+    return provider
 
 
 def get_tracer(module_name: str) -> trace.Tracer:

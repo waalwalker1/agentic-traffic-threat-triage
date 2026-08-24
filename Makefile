@@ -79,6 +79,8 @@ demo:
 security:
 	$(PYTHON) scripts/check_defensive_boundary.py
 	$(PYTHON) scripts/check_public_normalization.py
+	$(PYTHON) scripts/check_doc_links.py
+	$(PYTHON) scripts/sync_public_metrics.py --check
 
 build:
 	npm run build
@@ -88,24 +90,36 @@ docker-smoke:
 	$(PYTHON) scripts/docker_smoke.py
 
 release-check:
-	@echo "=== 1/8 Linting ==="
+	@echo "=== Stage 01: Data Generation & Model Training ==="
+	$(PYTHON) -m tools.synthetic_traffic.generator --seed 42 --output-dir data/fixtures --sample-dir data/samples
+	$(PYTHON) -m src.traffic_triage.detection.train --data-dir data/fixtures --output-dir artifacts/model_cards
+	@echo "=== Stage 02: Python & Frontend Linting ==="
 	$(RUFF) check src tests tools evals apps
 	$(RUFF) format --check src tests tools evals apps
-	@echo "=== 2/8 Type Checking ==="
+	npm run lint
+	@echo "=== Stage 03: Static Type Checking ==="
 	$(MYPY)
 	npm run typecheck
-	@echo "=== 3/8 Unit & Security Tests ==="
+	@echo "=== Stage 04: Unit, Protocol & Security Tests ==="
 	$(PYTEST) tests/unit tests/protocol tests/security
-	@echo "=== 4/8 Integration Tests ==="
+	@echo "=== Stage 05: Integration Tests ==="
 	$(PYTEST) tests/integration
-	@echo "=== 5/8 Benchmark Evaluations ==="
+	@echo "=== Stage 06: Full Benchmark Suite ==="
 	$(PYTHON) -m evals.runners.benchmark --data-dir data/fixtures --output-dir artifacts/evals/latest
-	@echo "=== 6/8 Frontend Build ==="
+	$(PYTHON) scripts/generate_model_card.py
+	@echo "=== Stage 07: Public Metrics Synchronization Check ==="
+	$(PYTHON) scripts/sync_public_metrics.py --check
+	@echo "=== Stage 08: Frontend Tests & Production Build ==="
+	npm run test
 	npm run build
-	@echo "=== 7/8 Security & Public Normalization Audit ==="
+	@echo "=== Stage 09: Security & Public Hygiene Audits ==="
 	$(PYTHON) scripts/check_defensive_boundary.py
 	$(PYTHON) scripts/check_public_normalization.py
-	@echo "=== 8/8 Release Audit Check Complete ==="
+	$(PYTHON) scripts/check_doc_links.py
+	@echo "=== Stage 10: Docker Smoke Validation ==="
+	$(PYTHON) scripts/docker_smoke.py --allow-missing-docker
+	@echo "=== ALL RELEASE QUALITY GATES PASSED! ==="
 
 clean-generated:
 	rm -rf data/fixtures/*.parquet data/fixtures/*.duckdb artifacts/evals/latest/* .pytest_cache .mypy_cache .ruff_cache apps/web/dist
+

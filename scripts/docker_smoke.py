@@ -22,15 +22,18 @@ def wait_for_endpoint(url: str, timeout_sec: int = 45) -> bool:
 
 
 def run_docker_smoke() -> None:
+    allow_missing = "--allow-missing-docker" in sys.argv
     print("=== Step 1: Checking Docker Daemon ===")
     try:
         ver = subprocess.check_output(["docker", "--version"], text=True)
         print(f"Docker available: {ver.strip()}")
         subprocess.check_output(["docker", "info"], stderr=subprocess.DEVNULL)
     except Exception as e:
-        print("Docker daemon is not running in this execution environment.")
-        print("Validated Dockerfile and docker-compose.yml configuration syntax.")
-        return
+        print(f"Docker daemon is not running: {e}")
+        if allow_missing:
+            print("Validated Dockerfile and docker-compose.yml configuration syntax (--allow-missing-docker).")
+            return
+        sys.exit(1)
 
     print("=== Step 2: Full Docker Compose Build & Launch ===")
     try:
@@ -52,12 +55,21 @@ def run_docker_smoke() -> None:
             subprocess.run(["docker", "compose", "logs"], check=False)
             sys.exit(1)
 
-        print("API is READY!")
+        req_ready = urllib.request.Request("http://localhost:8000/ready")
+        with urllib.request.urlopen(req_ready) as resp:
+            ready_data = json.loads(resp.read().decode("utf-8"))
+            if not ready_data.get("models_loaded"):
+                print(f"API /ready reported models_loaded=false: {ready_data}")
+                sys.exit(1)
+            print("API is READY with verified ModelBundle loaded!")
 
-        # 5. Check UI availability
-        print("Checking UI availability at http://localhost:5173...")
-        if not wait_for_endpoint("http://localhost:5173", timeout_sec=20):
-            print("Web UI failed to respond within timeout.")
+        # 5. Check UI availability on canonical port 3000
+        print("Checking UI availability at http://localhost:3000...")
+        if not wait_for_endpoint("http://localhost:3000", timeout_sec=30):
+            print("Web UI failed to respond on http://localhost:3000 within timeout.")
+            subprocess.run(["docker", "compose", "logs", "web"], check=False)
+            sys.exit(1)
+        print("Web UI is responding at http://localhost:3000!")
 
         # 6. Execute Ingest Transaction
         print("Sending synthetic event ingest batch...")

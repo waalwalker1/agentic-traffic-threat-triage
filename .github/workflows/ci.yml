@@ -44,6 +44,9 @@ jobs:
       - name: Static Type Checking (mypy)
         run: uv run mypy src tools evals
 
+      - name: Frontend ESLint
+        run: npm run lint
+
       - name: TypeScript Type Checking
         run: npm run typecheck
 
@@ -106,6 +109,7 @@ jobs:
           uv run python -m tools.synthetic_traffic.generator --seed 42 --output-dir data/fixtures --sample-dir data/samples
           uv run python -m src.traffic_triage.detection.train --data-dir data/fixtures --output-dir artifacts/model_cards
           uv run python -m evals.runners.benchmark --data-dir data/fixtures --output-dir artifacts/evals/latest
+          uv run python scripts/generate_model_card.py
 
       - name: Verify Summary & Benchmark Artifacts
         run: |
@@ -118,9 +122,13 @@ jobs:
           test -f artifacts/evals/latest/CRITIC_CHALLENGE_REPORT.md
           test -f artifacts/evals/latest/INJECTION_REPORT.md
           test -f artifacts/evals/latest/ABLATION_REPORT.md
+          test -f docs/MODEL_CARD.md
 
-  e2e-analyst-workflow:
-    name: E2E Analyst Workflow
+      - name: Check Public Metrics Synchronization
+        run: uv run python scripts/sync_public_metrics.py --check
+
+  frontend-quality:
+    name: Frontend Quality & Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -135,24 +143,59 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Frontend ESLint
+        run: npm run lint
+
+      - name: Frontend Typecheck
+        run: npm run typecheck
+
+      - name: Frontend Unit Tests
+        run: npm run test
+
       - name: Production Frontend Build
         run: npm run build
 
-  docker-build-and-smoke:
-    name: Docker Build & Compose Config
+  playwright-e2e:
+    name: Playwright E2E Analyst Workflow
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate Docker Compose Configuration
-        run: docker compose config --quiet
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-      - name: Build Docker Compose Stack
-        run: docker compose build
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
 
-  public-repo-hygiene:
-    name: Public Repository Hygiene & Doc Link Integrity
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: |
+          uv sync --extra dev --extra cloud
+          npm ci
+
+      - name: Generate synthetic dataset & train model bundle
+        run: |
+          uv run python -m tools.synthetic_traffic.generator --seed 42 --output-dir data/fixtures --sample-dir data/samples
+          uv run python -m src.traffic_triage.detection.train --data-dir data/fixtures --output-dir artifacts/model_cards
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E Tests
+        run: npm run test:e2e
+
+  docker-build-and-smoke:
+    name: Docker Build & Compose Smoke
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -168,6 +211,43 @@ jobs:
         with:
           version: "latest"
 
+      - name: Install dependencies
+        run: uv sync --extra dev --extra cloud
+
+      - name: Generate synthetic dataset & train model bundle
+        run: |
+          uv run python -m tools.synthetic_traffic.generator --seed 42 --output-dir data/fixtures --sample-dir data/samples
+          uv run python -m src.traffic_triage.detection.train --data-dir data/fixtures --output-dir artifacts/model_cards
+
+      - name: Validate Docker Compose Configuration
+        run: docker compose config --quiet
+
+      - name: Build Docker Compose Stack
+        run: docker compose build
+
+      - name: Execute Full Docker Stack Smoke Test
+        run: uv run python scripts/docker_smoke.py
+
+  security-and-hygiene:
+    name: Security Audits & Public Repo Hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: uv sync --extra dev --extra cloud
+
       - name: Check Defensive Boundary
         run: uv run python scripts/check_defensive_boundary.py
 
@@ -176,6 +256,9 @@ jobs:
 
       - name: Check Documentation Links
         run: uv run python scripts/check_doc_links.py
+
+      - name: Python Static Security Analysis (Bandit)
+        run: uv run bandit -r src/ -ll
 
       - name: Verify No Private Files Committed
         run: |

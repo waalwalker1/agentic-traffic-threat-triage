@@ -36,8 +36,11 @@ dev = [
     "ruff>=0.7.0",
     "mypy>=1.13.0",
     "bandit>=1.7.10",
+    "pip-audit>=2.7.0",
+    "detect-secrets>=1.5.0",
 ]
 cloud = [
+    "google-genai>=0.1.1",
     "google-cloud-aiplatform>=1.70.0",
     "boto3>=1.35.0",
 ]

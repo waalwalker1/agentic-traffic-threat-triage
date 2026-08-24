@@ -11,6 +11,7 @@ from src.traffic_triage.agents.role_schemas import (
     MCPAgentOutput,
     SynthesisAgentOutput,
 )
+from src.traffic_triage.observability.telemetry import get_tracer
 from src.traffic_triage.schemas.detection import DetectionResult
 from src.traffic_triage.schemas.evidence import CuratedEvidenceBundle
 from src.traffic_triage.schemas.incidents import (
@@ -18,6 +19,8 @@ from src.traffic_triage.schemas.incidents import (
     GroundedFinding,
     IncidentBrief,
 )
+
+tracer = get_tracer("traffic_triage.agents.supervisor")
 
 
 class DeterministicSupervisor:
@@ -93,89 +96,97 @@ class DeterministicSupervisor:
         incident_id = f"inc_{bundle.session_id}_{uuid.uuid4().hex[:6]}"
 
         # 1. Run Identity Analysis
-        id_out: IdentityAgentOutput = await self.crew.run_identity_analysis(bundle)
+        with tracer.start_as_current_span("agent_identity"):
+            id_out: IdentityAgentOutput = await self.crew.run_identity_analysis(bundle)
 
         # 2. Run Intent Analysis
-        intent_out: IntentAgentOutput = await self.crew.run_intent_analysis(bundle)
+        with tracer.start_as_current_span("agent_intent"):
+            intent_out: IntentAgentOutput = await self.crew.run_intent_analysis(bundle)
 
         # 3. Run MCP Analysis
-        mcp_out: MCPAgentOutput = await self.crew.run_mcp_analysis(bundle)
+        with tracer.start_as_current_span("agent_mcp"):
+            mcp_out: MCPAgentOutput = await self.crew.run_mcp_analysis(bundle)
 
         # 4. Run Threat Hypothesis Synthesis
-        synth_out: SynthesisAgentOutput = await self.crew.run_synthesis(
-            bundle, id_out, intent_out, mcp_out
-        )
+        with tracer.start_as_current_span("agent_synthesis"):
+            synth_out: SynthesisAgentOutput = await self.crew.run_synthesis(
+                bundle, id_out, intent_out, mcp_out
+            )
 
         # 5. Run Evidence Critic
-        critic_out: CriticAgentOutput = await self.crew.run_critic(bundle, synth_out)
+        with tracer.start_as_current_span("critic"):
+            critic_out: CriticAgentOutput = await self.crew.run_critic(bundle, synth_out)
 
-        # 6. Validate Citations deterministically
-        raw_citations = (
-            synth_out.all_cited_evidence_ids
-            + id_out.cited_evidence_ids
-            + intent_out.cited_evidence_ids
-            + mcp_out.cited_evidence_ids
-        )
-        valid_citations, invalid_citations = self.validate_citations(raw_citations, bundle)
+        with tracer.start_as_current_span("supervisor_validation"):
+            # 6. Validate Citations deterministically
+            raw_citations = (
+                synth_out.all_cited_evidence_ids
+                + id_out.cited_evidence_ids
+                + intent_out.cited_evidence_ids
+                + mcp_out.cited_evidence_ids
+            )
+            valid_citations, invalid_citations = self.validate_citations(raw_citations, bundle)
 
-        # 7. Validate Grounded Findings & Numeric Assertions
-        grounded_findings: list[GroundedFinding] = []
-        unsupported_claim_detected = False
-        valid_ev_ids = {ev.evidence_id for ev in bundle.evidence_items}
+            # 7. Validate Grounded Findings & Numeric Assertions
+            grounded_findings: list[GroundedFinding] = []
+            unsupported_claim_detected = False
+            valid_ev_ids = {ev.evidence_id for ev in bundle.evidence_items}
 
-        if synth_out.grounded_findings:
-            for gf in synth_out.grounded_findings:
-                # Check if citations are valid
-                c_valid = [cid for cid in gf.evidence_ids if cid in valid_ev_ids]
-                c_invalid = [cid for cid in gf.evidence_ids if cid not in valid_ev_ids]
-                if c_invalid or not c_valid:
-                    unsupported_claim_detected = True
-                gf.evidence_ids = c_valid
-                grounded_findings.append(gf)
-        else:
-            # Construct default grounded findings from key findings and valid citations
-            for kf in synth_out.key_findings:
-                gf = GroundedFinding(
-                    finding=kf,
-                    evidence_ids=valid_citations,
-                    numeric_assertions=[],
-                    is_factual=True,
+            if synth_out.grounded_findings:
+                for gf in synth_out.grounded_findings:
+                    # Check if citations are valid
+                    c_valid = [cid for cid in gf.evidence_ids if cid in valid_ev_ids]
+                    c_invalid = [cid for cid in gf.evidence_ids if cid not in valid_ev_ids]
+                    if c_invalid or not c_valid:
+                        unsupported_claim_detected = True
+                    gf.evidence_ids = c_valid
+                    grounded_findings.append(gf)
+            else:
+                # Construct default grounded findings from key findings and valid citations
+                for kf in synth_out.key_findings:
+                    gf = GroundedFinding(
+                        finding=kf,
+                        evidence_ids=valid_citations,
+                        numeric_assertions=[],
+                        is_factual=True,
+                    )
+                    grounded_findings.append(gf)
+
+            total_num, verified_num = self.validate_numeric_assertions(grounded_findings, bundle)
+            numeric_mismatch = (total_num > 0) and (verified_num < total_num)
+
+            # Construct CriticReview audit record
+            has_invalid = len(invalid_citations) > 0
+            approved = (
+                critic_out.approved
+                and not has_invalid
+                and not unsupported_claim_detected
+                and not numeric_mismatch
+            )
+
+            rejections = list(critic_out.rejected_reasons)
+            if invalid_citations:
+                rejections.append(
+                    f"Supervisor rejected invalid evidence citations: {invalid_citations}"
                 )
-                grounded_findings.append(gf)
+            if unsupported_claim_detected:
+                rejections.append(
+                    "Supervisor detected factual claim without valid evidence citation"
+                )
+            if numeric_mismatch:
+                rejections.append(
+                    f"Supervisor detected numeric assertion mismatch ({verified_num}/{total_num} verified)"
+                )
 
-        total_num, verified_num = self.validate_numeric_assertions(grounded_findings, bundle)
-        numeric_mismatch = (total_num > 0) and (verified_num < total_num)
-
-        # Construct CriticReview audit record
-        has_invalid = len(invalid_citations) > 0
-        approved = (
-            critic_out.approved
-            and not has_invalid
-            and not unsupported_claim_detected
-            and not numeric_mismatch
-        )
-
-        rejections = list(critic_out.rejected_reasons)
-        if invalid_citations:
-            rejections.append(
-                f"Supervisor rejected invalid evidence citations: {invalid_citations}"
+            critic_review = CriticReview(
+                approved=approved,
+                rejected_reasons=rejections,
+                invalid_evidence_ids=critic_out.invalid_evidence_ids + invalid_citations,
+                score_mutation_detected=False,
+                unsupported_claim_detected=unsupported_claim_detected,
+                numeric_mismatch_detected=numeric_mismatch,
+                prompt_injection_flags=[],
             )
-        if unsupported_claim_detected:
-            rejections.append("Supervisor detected factual claim without valid evidence citation")
-        if numeric_mismatch:
-            rejections.append(
-                f"Supervisor detected numeric assertion mismatch ({verified_num}/{total_num} verified)"
-            )
-
-        critic_review = CriticReview(
-            approved=approved,
-            rejected_reasons=rejections,
-            invalid_evidence_ids=critic_out.invalid_evidence_ids + invalid_citations,
-            score_mutation_detected=False,
-            unsupported_claim_detected=unsupported_claim_detected,
-            numeric_mismatch_detected=numeric_mismatch,
-            prompt_injection_flags=[],
-        )
 
         # 8. Compose final IncidentBrief
         # INVARIANT: risk_score and risk_band are strictly copied from deterministic detection_result

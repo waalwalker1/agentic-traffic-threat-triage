@@ -110,6 +110,38 @@ The platform enforces a strict architectural boundary between the **Deterministi
 
 ---
 
+<!-- BEGIN AUTO-GENERATED BENCHMARK METRICS -->
+| Evaluation Dimension | Metric | Measured Value | Benchmark Scope / Note |
+|---|---|---|---|
+| **Track A (IID Holdout)** | **Precision** | **1.0000** | Zero false positives on held-out test cohort |
+| | **Recall** | **0.8500** | Detection recall on holdout threats |
+| | **F1 Score** | **0.9189** | Fused multi-signal ensemble |
+| | **ROC-AUC** | **0.9850** | High discriminative capacity |
+| | **PR-AUC** | **0.9930** | Precision-Recall Area Under Curve |
+| | **False Positive Rate** | **0.0000** | 0.0% FPR on standard test partition |
+| **Track B (5-Fold OOD Family Holdout)** | **Mean F1 Score** | **0.7551 ± 0.1259** | Withheld entire scenario families from training |
+| | **Mean Precision** | **0.8386 ± 0.1412** | Generalization across unseen threat families |
+| | **Mean Recall** | **0.7100 ± 0.1828** | True out-of-distribution family recall |
+| **Multi-Seed Stability (5 Seeds)** | **Mean F1 Score** | **0.9271 ± 0.0300** | Evaluated across seeds [42, 101, 202, 303, 404] |
+| **Hard-Negative Cohort** | **Benign FPR (N=500)** | **0.0200** (10/500) | 95% Wilson CI: [0.0109, 0.0364] |
+| **Probability Calibration** | **Brier Score** | **0.1676** | Platt sigmoid scaling on continuous probability |
+| | **Expected Calibration Error** | **0.3184** | Uniform 10-bin ECE on model probability |
+| **Agent Groundedness** | **Citation Validity Rate** | **100.0%** | Verified against curated evidence bundle |
+| | **Unsupported Claim Rate** | **0.0%** | Factual findings grounded in deterministic evidence |
+| | **Score Mutation Rate** | **0.0%** | Supervisor rejects any risk score tampering |
+| **LLM Security** | **Injection Defense Rate** | **92.9%** | 26/28 adversarial injection fixtures defended |
+| | **Critic Catch Rate** | **100.0%** | Invariant validation catches challenge briefs |
+
+### Baseline Ablation Comparison
+| Model Configuration | Precision | Recall | F1 Score | Description |
+|---|---|---|---|---|
+| Rules Only | 1.0000 | 0.0500 | 0.0952 | Explainable threshold rules |
+| Supervised Classifier Only | 0.9444 | 0.8500 | 0.8947 | HistGradientBoosting classifier |
+| Unsupervised Anomaly Only | 1.0000 | 0.4000 | 0.5714 | Isolation Forest on behavioral features |
+| PyTorch MLP Only | 1.0000 | 0.9500 | 0.9744 | 2-layer neural network |
+| **Final Fused Risk Policy** | **1.0000** | **0.8500** | **0.9189** | **Fused multi-signal ensemble with hard overrides** |
+<!-- END AUTO-GENERATED BENCHMARK METRICS -->
+
 ## Defensive Scope & Safety Boundary (P0 Invariant)
 
 - **Defensive Research Only**: The system analyzes local synthetic datasets or user-provided logs.

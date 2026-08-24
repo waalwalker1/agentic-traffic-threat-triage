@@ -36,9 +36,16 @@ class DeterministicLocalProvider:
         risk_match = re.search(r"risk_score[:=]\s*([0-9.]+)", ctx)
         risk_score = float(risk_match.group(1)) if risk_match else 0.5
 
-        # Extract numeric feature values from evidence if present
-        rps_match = re.search(r"requests_per_second[:=\s]+([0-9.]+)", ctx)
-        observed_rps = float(rps_match.group(1)) if rps_match else None
+        # Extract numeric feature values and evidence IDs from context
+        numeric_features: dict[str, tuple[float, str]] = {}
+        for match in re.finditer(
+            r"ID:\s*(E-[A-Z]+-[A-Za-z0-9_-]+)\s*\|.*?Feature:\s*([a-zA-Z0-9_]+)\s*\|\s*Observed:\s*([0-9.]+)",
+            ctx,
+        ):
+            eid = match.group(1)
+            fname = match.group(2)
+            val = float(match.group(3))
+            numeric_features[fname] = (val, eid)
 
         if issubclass(response_schema, IdentityAgentOutput):
             id_evs = [e for e in unique_ev_ids if "E-ID" in e]
@@ -203,13 +210,37 @@ class DeterministicLocalProvider:
                 if not assigned_evs:
                     assigned_evs = unique_ev_ids
 
-                if observed_rps is not None and idx == 1:
+                if idx == 1 and "requests_per_second" in numeric_features:
+                    val, eid = numeric_features["requests_per_second"]
                     num_asserts.append(
                         NumericAssertion(
                             metric_name="requests_per_second",
-                            claimed_value=observed_rps,
+                            claimed_value=val,
                             tolerance=0.05,
-                            verified_against_evidence_id=vol_evs[0] if vol_evs else None,
+                            verified_against_evidence_id=eid,
+                            is_verified=True,
+                        )
+                    )
+                elif idx == 0 and "auth_failure_ratio" in numeric_features:
+                    val, eid = numeric_features["auth_failure_ratio"]
+                    num_asserts.append(
+                        NumericAssertion(
+                            metric_name="auth_failure_ratio",
+                            claimed_value=val,
+                            tolerance=0.05,
+                            verified_against_evidence_id=eid,
+                            is_verified=True,
+                        )
+                    )
+                elif idx == 0 and "requests_per_second" in numeric_features and not num_asserts:
+                    val, eid = numeric_features["requests_per_second"]
+                    num_asserts.append(
+                        NumericAssertion(
+                            metric_name="requests_per_second",
+                            claimed_value=val,
+                            tolerance=0.05,
+                            verified_against_evidence_id=eid,
+                            is_verified=True,
                         )
                     )
 

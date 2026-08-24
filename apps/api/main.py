@@ -32,6 +32,7 @@ from src.traffic_triage.features.extractor import FeatureExtractor
 from src.traffic_triage.identity.trust import IdentityEvaluator
 from src.traffic_triage.llm.providers.deterministic_local import DeterministicLocalProvider
 from src.traffic_triage.mcp_activity.analyzer import MCPSequenceAnalyzer
+from src.traffic_triage.observability.telemetry import get_tracer, setup_observability
 from src.traffic_triage.persistence.duckdb_store import DuckDBStore
 from src.traffic_triage.risk.fusion import RiskPolicy
 from src.traffic_triage.schemas.detection import DetectionResult
@@ -44,6 +45,7 @@ from src.traffic_triage.schemas.incidents import (
 from src.traffic_triage.telemetry.sessionizer import TelemetrySessionizer
 
 logger = logging.getLogger(__name__)
+tracer = get_tracer("apps.api.main")
 
 # Prometheus Metrics
 REQUEST_COUNT = Counter(
@@ -56,44 +58,40 @@ INCIDENTS_CREATED = Counter(
 
 
 class ServiceContainer:
+    """Runtime dependency container for detection models, storage, and agents."""
+
     def __init__(self) -> None:
-        db_path = os.getenv("DUCKDB_PATH", ":memory:")
-        self.store = DuckDBStore(db_path=db_path)
+        self.store = DuckDBStore()
         self.sessionizer = TelemetrySessionizer()
         self.feature_extractor = FeatureExtractor()
         self.identity_evaluator = IdentityEvaluator()
         self.mcp_analyzer = MCPSequenceAnalyzer()
+        self.evidence_collector = EvidenceCollector()
         self.rules_detector = RuleBaselineDetector()
         self.risk_policy = RiskPolicy()
-        self.evidence_collector = EvidenceCollector()
+        self.crew = SOCTriageCrew(DeterministicLocalProvider())
+        self.supervisor = DeterministicSupervisor(self.crew)
 
-        # Model bundle lifecycle
         self.model_mode = os.getenv("MODEL_MODE", "trained")
         self.bundle_dir = os.getenv("MODEL_BUNDLE_DIR", "artifacts/model_cards/current")
         self.bundle: ModelBundle | None = None
-        self.models_loaded = False
-        self.load_error: str | None = None
-
         self.supervised_classifier: SupervisedThreatClassifier | None = None
         self.unsupervised_detector: UnsupervisedAnomalyDetector | None = None
         self.pytorch_detector: PyTorchThreatDetector | None = None
         self.calibrator: ScoreCalibrator | None = None
+        self.models_loaded: bool = False
+        self.load_error: str | None = None
 
         self._initialize_models()
 
-        # Offline deterministic triage crew & supervisor
-        self.llm_provider = DeterministicLocalProvider()
-        self.crew = SOCTriageCrew(self.llm_provider)
-        self.supervisor = DeterministicSupervisor(self.crew)
-
     def _initialize_models(self) -> None:
-        if self.model_mode == "explicit_untrained_demo":
+        """Loads versioned ModelBundle if present; falls back to explicit untrained mode if requested."""
+        if self.model_mode == "untrained":
             logger.warning("Running in EXPLICIT UNTRAINED DEMO mode.")
             self.unsupervised_detector = UnsupervisedAnomalyDetector()
             self.supervised_classifier = SupervisedThreatClassifier()
             self.pytorch_detector = PyTorchThreatDetector()
             self.calibrator = ScoreCalibrator()
-            self.models_loaded = False
             return
 
         try:
@@ -115,6 +113,7 @@ container = ServiceContainer()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    setup_observability(service_name="agentic-traffic-threat-triage-api")
     try:
         container.store.con.execute("SELECT 1")
     except Exception:
@@ -145,10 +144,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "*")
+allowed_origins = [o.strip() for o in allowed_origins_raw.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=allowed_origins if allowed_origins else ["*"],
+    allow_credentials=True if allowed_origins != ["*"] else False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -256,14 +258,17 @@ class DispositionRequest(BaseModel):
 def ingest_events(payload: IngestRequest) -> IngestResponse:
     if not payload.events:
         raise HTTPException(status_code=400, detail="Empty event batch")
-    container.store.save_events(payload.events)
-    sessions = container.sessionizer.sessionize(payload.events)
+    with tracer.start_as_current_span("ingest"):
+        container.store.save_events(payload.events)
+    with tracer.start_as_current_span("sessionize"):
+        sessions = container.sessionizer.sessionize(payload.events)
     session_ids = []
-    for s in sessions:
-        container.store.save_session(s)
-        fv = container.feature_extractor.extract_features(s.events, s.session_id)
-        container.store.save_features(fv)
-        session_ids.append(s.session_id)
+    with tracer.start_as_current_span("feature_extraction"):
+        for s in sessions:
+            container.store.save_session(s)
+            fv = container.feature_extractor.extract_features(s.events, s.session_id)
+            container.store.save_features(fv)
+            session_ids.append(s.session_id)
     return IngestResponse(events_ingested=len(payload.events), sessions_updated=session_ids)
 
 
@@ -295,12 +300,18 @@ def run_detection(session_id: str) -> DetectionResult:
     if not events:
         raise HTTPException(status_code=404, detail="Session not found or has no events")
 
-    fv = container.feature_extractor.extract_features(events, session_id)
-    id_eval = container.identity_evaluator.evaluate_session_identity(events)
-    mcp_m = container.mcp_analyzer.analyze_session(events)
+    with tracer.start_as_current_span("feature_extraction"):
+        fv = container.feature_extractor.extract_features(events, session_id)
+    with tracer.start_as_current_span("identity_evaluation"):
+        id_eval = container.identity_evaluator.evaluate_session_identity(events)
+    with tracer.start_as_current_span("mcp_analysis"):
+        mcp_m = container.mcp_analyzer.analyze_session(events)
 
-    ev_items = container.evidence_collector.collect_evidence(session_id, fv, events, id_eval, mcp_m)
-    container.store.save_evidence_items(ev_items)
+    with tracer.start_as_current_span("evidence_collection"):
+        ev_items = container.evidence_collector.collect_evidence(
+            session_id, fv, events, id_eval, mcp_m
+        )
+        container.store.save_evidence_items(ev_items)
 
     if container.bundle:
         det = container.bundle.evaluate_session(fv, container.rules_detector, container.risk_policy)
@@ -322,18 +333,20 @@ def run_detection(session_id: str) -> DetectionResult:
             container.pytorch_detector.predict_score(fv) if container.pytorch_detector else 0.5
         )
 
-        det = container.risk_policy.fuse_scores(
-            session_id=session_id,
-            fv=fv,
-            rules_score=rules_res.score,
-            supervised_score=sup_score,
-            anomaly_score=iso_score,
-            pytorch_score=pyt_score,
-            reason_codes=rules_res.reason_codes,
-            evidence_ids=[e.evidence_id for e in ev_items],
-        )
+        with tracer.start_as_current_span("policy_fusion"):
+            det = container.risk_policy.fuse_scores(
+                session_id=session_id,
+                fv=fv,
+                rules_score=rules_res.score,
+                supervised_score=sup_score,
+                anomaly_score=iso_score,
+                pytorch_score=pyt_score,
+                reason_codes=rules_res.reason_codes,
+                evidence_ids=[e.evidence_id for e in ev_items],
+            )
 
-    container.store.save_detection_result(det)
+    with tracer.start_as_current_span("duckdb_store"):
+        container.store.save_detection_result(det)
     return det
 
 
@@ -343,12 +356,18 @@ async def run_triage(session_id: str) -> IncidentBrief:
     if not events:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    fv = container.feature_extractor.extract_features(events, session_id)
-    id_eval = container.identity_evaluator.evaluate_session_identity(events)
-    mcp_m = container.mcp_analyzer.analyze_session(events)
+    with tracer.start_as_current_span("feature_extraction"):
+        fv = container.feature_extractor.extract_features(events, session_id)
+    with tracer.start_as_current_span("identity_evaluation"):
+        id_eval = container.identity_evaluator.evaluate_session_identity(events)
+    with tracer.start_as_current_span("mcp_analysis"):
+        mcp_m = container.mcp_analyzer.analyze_session(events)
 
-    ev_items = container.evidence_collector.collect_evidence(session_id, fv, events, id_eval, mcp_m)
-    container.store.save_evidence_items(ev_items)
+    with tracer.start_as_current_span("evidence_collection"):
+        ev_items = container.evidence_collector.collect_evidence(
+            session_id, fv, events, id_eval, mcp_m
+        )
+        container.store.save_evidence_items(ev_items)
 
     if container.bundle:
         det = container.bundle.evaluate_session(fv, container.rules_detector, container.risk_policy)
@@ -369,22 +388,25 @@ async def run_triage(session_id: str) -> IncidentBrief:
             container.pytorch_detector.predict_score(fv) if container.pytorch_detector else 0.5
         )
 
-        det = container.risk_policy.fuse_scores(
-            session_id=session_id,
-            fv=fv,
-            rules_score=rules_res.score,
-            supervised_score=sup_score,
-            anomaly_score=iso_score,
-            pytorch_score=pyt_score,
-            reason_codes=rules_res.reason_codes,
-            evidence_ids=[e.evidence_id for e in ev_items],
-        )
+        with tracer.start_as_current_span("policy_fusion"):
+            det = container.risk_policy.fuse_scores(
+                session_id=session_id,
+                fv=fv,
+                rules_score=rules_res.score,
+                supervised_score=sup_score,
+                anomaly_score=iso_score,
+                pytorch_score=pyt_score,
+                reason_codes=rules_res.reason_codes,
+                evidence_ids=[e.evidence_id for e in ev_items],
+            )
 
-    container.store.save_detection_result(det)
+    with tracer.start_as_current_span("duckdb_store"):
+        container.store.save_detection_result(det)
 
     bundle = container.evidence_collector.build_bundle(session_id, det, ev_items, events)
     brief = await container.supervisor.execute_triage(bundle, det)
-    container.store.save_incident(brief)
+    with tracer.start_as_current_span("duckdb_store"):
+        container.store.save_incident(brief)
     INCIDENTS_CREATED.labels(risk_band=brief.risk_band.value).inc()
     return brief
 

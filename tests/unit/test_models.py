@@ -80,3 +80,55 @@ def test_score_calibrator():
 
     metrics = ScoreCalibrator.compute_metrics(labels, raw, n_bins=2)
     assert metrics.brier_score >= 0.0
+
+
+def test_model_bundle_calibration_execution():
+    from src.traffic_triage.detection.model_bundle import ModelBundle, ModelManifest
+    from src.traffic_triage.risk.fusion import RiskPolicy
+
+    X_train = np.random.randn(20, len(FEATURE_NAMES)).astype(np.float32)
+    y_train = np.random.choice([0, 1], size=20)
+
+    iso = UnsupervisedAnomalyDetector()
+    iso.fit(X_train)
+
+    clf = SupervisedThreatClassifier()
+    clf.fit(X_train, y_train)
+
+    pyt = PyTorchThreatDetector(input_dim=len(FEATURE_NAMES))
+    pyt.train_model(X_train, y_train.astype(np.float32), epochs=5)
+
+    calib = ScoreCalibrator()
+    calib.fit(np.array([0.1, 0.2, 0.8, 0.9]), np.array([0, 0, 1, 1]))
+
+    manifest = ModelManifest(
+        bundle_version="1.0.0",
+        feature_schema_version="1.0.0",
+        risk_policy_version="2026.1.0",
+        trained_at="2026-08-24T00:00:00Z",
+        dataset_sha256="test_sha",
+        artifact_sha256={},
+        supervised_model_version="1.0.0",
+        anomaly_model_version="1.0.0",
+        pytorch_model_version="1.0.0",
+        calibrator_version="1.0.0",
+    )
+
+    bundle = ModelBundle(
+        supervised=clf,
+        anomaly=iso,
+        pytorch=pyt,
+        calibrator=calib,
+        manifest=manifest,
+    )
+
+    fv = SessionFeatureVector(
+        session_id="test_calib_s1", features=dict.fromkeys(FEATURE_NAMES, 0.0)
+    )
+    rules_det = RuleBaselineDetector()
+    policy = RiskPolicy()
+
+    det_res = bundle.evaluate_session(fv, rules_det, policy)
+    expected_calibrated = bundle.calibrator.calibrate(det_res.raw_model_score)
+
+    assert abs(det_res.calibrated_model_probability - expected_calibrated) < 1e-4

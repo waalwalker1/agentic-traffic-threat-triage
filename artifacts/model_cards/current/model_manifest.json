@@ -2,7 +2,7 @@
   "bundle_version": "1.0.0",
   "feature_schema_version": "1.0.0",
   "risk_policy_version": "2026.1.0",
-  "trained_at": "2026-08-23T19:51:16.669480+00:00",
+  "trained_at": "2026-08-24T10:24:50.778076+00:00",
   "dataset_sha256": "523f9d8d813dd49f05c73543bc83afe8ef9f494a47d1a9110ee2a27e0116cbdb",
   "artifact_sha256": {
     "supervised.joblib": "9067f66f1fbccc79ad76c962f2cf6102bee2482324ca420b7b0a54d17deb4398",

@@ -86,7 +86,16 @@ class ModelBundle:
         anomaly_score = self.anomaly.predict_score(fv)
         pytorch_score = self.pytorch.predict_score(fv)
 
-        # 3. Fuse scores via calibrated risk policy
+        # 3. Calculate raw model ensemble score and calibrate
+        raw_model_score = float(
+            risk_policy.weights.supervised * supervised_prob
+            + risk_policy.weights.unsupervised * anomaly_score
+            + risk_policy.weights.pytorch * pytorch_score
+        )
+        raw_model_score = float(min(max(raw_model_score, 0.0), 1.0))
+        calibrated_probability = self.calibrator.calibrate(raw_model_score)
+
+        # 4. Fuse scores via calibrated risk policy
         det_result = risk_policy.fuse_scores(
             session_id=fv.session_id,
             fv=fv,
@@ -96,6 +105,7 @@ class ModelBundle:
             pytorch_score=pytorch_score,
             reason_codes=rules_res.reason_codes,
             evidence_ids=[],
+            calibrated_probability=calibrated_probability,
         )
 
         return det_result
