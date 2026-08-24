@@ -46,6 +46,8 @@ yarn-error.log*
 apps/web/dist/
 apps/web/dist-ssr/
 *.local
+test-results/
+playwright-report/
 
 # Database & Runtime artifacts
 *.duckdb
