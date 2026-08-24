@@ -816,11 +816,11 @@ async def run_full_benchmark(data_dir: str, output_dir: str) -> dict[str, Any]:
 
 | Configuration | Precision | Recall | F1 Score |
 |---|---|---|---|
-| A. Rules Only | {float(a_r['precision']):.4f} | {float(a_r['recall']):.4f} | {float(a_r['f1']):.4f} |
-| B. Supervised Only | {float(b_s['precision']):.4f} | {float(b_s['recall']):.4f} | {float(b_s['f1']):.4f} |
-| C. Anomaly Only | {float(c_a['precision']):.4f} | {float(c_a['recall']):.4f} | {float(c_a['f1']):.4f} |
-| D. PyTorch Only | {float(d_p['precision']):.4f} | {float(d_p['recall']):.4f} | {float(d_p['f1']):.4f} |
-| **G. Full Risk Policy Fusion** | **{float(g_f['precision']):.4f}** | **{float(g_f['recall']):.4f}** | **{float(g_f['f1']):.4f}** |
+| A. Rules Only | {float(a_r["precision"]):.4f} | {float(a_r["recall"]):.4f} | {float(a_r["f1"]):.4f} |
+| B. Supervised Only | {float(b_s["precision"]):.4f} | {float(b_s["recall"]):.4f} | {float(b_s["f1"]):.4f} |
+| C. Anomaly Only | {float(c_a["precision"]):.4f} | {float(c_a["recall"]):.4f} | {float(c_a["f1"]):.4f} |
+| D. PyTorch Only | {float(d_p["precision"]):.4f} | {float(d_p["recall"]):.4f} | {float(d_p["f1"]):.4f} |
+| **G. Full Risk Policy Fusion** | **{float(g_f["precision"]):.4f}** | **{float(g_f["recall"]):.4f}** | **{float(g_f["f1"]):.4f}** |
 """)
 
     with open(out_path / "FEATURE_IMPORTANCE_REPORT.md", "w") as f:

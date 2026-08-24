@@ -5,6 +5,7 @@ import logging
 import os
 import time
 import uuid
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -112,7 +113,13 @@ class ServiceContainer:
 container = ServiceContainer()
 
 
-def lifespan(app: FastAPI):
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        container.store.con.execute("SELECT 1")
+    except Exception:
+        container.store = DuckDBStore()
+
     parquet_path = Path("data/fixtures/traffic_dataset.parquet")
     if parquet_path.exists():
         from src.traffic_triage.detection.train import load_parquet_events
@@ -125,7 +132,10 @@ def lifespan(app: FastAPI):
             fv = container.feature_extractor.extract_features(s.events, s.session_id)
             container.store.save_features(fv)
     yield
-    container.store.close()
+    try:
+        container.store.close()
+    except Exception:
+        pass
 
 
 app = FastAPI(

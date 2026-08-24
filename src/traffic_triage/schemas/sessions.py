@@ -14,9 +14,9 @@ class TrafficSession(BaseModel):
     session_id: str = Field(..., description="Unique session identifier")
     start_time: datetime = Field(..., description="Timestamp of first event in session")
     end_time: datetime = Field(..., description="Timestamp of last event in session")
-    event_count: int = Field(..., ge=1, description="Total number of events in session")
-    duration_seconds: float = Field(..., ge=0.0, description="Session span in seconds")
-    route_count: int = Field(..., ge=1, description="Count of unique routes accessed")
+    event_count: int = Field(default=1, ge=1, description="Total number of events in session")
+    duration_seconds: float = Field(default=0.0, ge=0.0, description="Session span in seconds")
+    route_count: int = Field(default=1, ge=1, description="Count of unique routes accessed")
     actor_claims: list[str] = Field(
         default_factory=list, description="Distinct identity claims in session"
     )

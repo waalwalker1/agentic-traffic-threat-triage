@@ -57,7 +57,7 @@ def test_model_bundle_lifecycle_and_runtime_readiness():
         assert res1.anomaly_score >= 0.0
         assert res1.policy_risk_score >= 0.80
         assert res1.risk_band.value in ("HIGH", "CRITICAL")
-        assert "OVERRIDE_HIGH_BURST_RATE" in res1.policy_override_codes
+        assert "RISK_OVERRIDE_BURST_VOLUME" in res1.policy_override_codes
 
         # 4. Reload bundle again and verify deterministic parity
         bundle2 = ModelBundleLoader.load(current_bundle_dir)

@@ -61,6 +61,8 @@ def test_duckdb_restart_durability():
             start_time=now,
             end_time=now,
             event_count=1,
+            duration_seconds=0.0,
+            route_count=1,
             source_id_hash="src_abcdef01",
         )
         store1.save_session(session)
