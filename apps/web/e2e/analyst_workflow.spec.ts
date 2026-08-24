@@ -44,8 +44,8 @@ test.describe('SOC Analyst End-to-End Workflow', () => {
     await expect(page.getByText(/Architecture Invariants/i)).toBeVisible();
 
     // 3. Navigate to Session Explorer
-    await page.getByRole('button', { name: /Session Explorer/i }).click();
-    await expect(page.getByText(/Sessions/i)).toBeVisible();
+    await page.getByRole('button', { name: /^Session Explorer/i }).click();
+    await expect(page.getByText(/Sessions/i).first()).toBeVisible();
 
     // 4. Select the seeded session
     const targetSession = page.getByText('sess_e2e_analyst_01').first();
@@ -71,18 +71,18 @@ test.describe('SOC Analyst End-to-End Workflow', () => {
     await page.getByRole('button', { name: /Confirmed Abuse/i }).click();
 
     // 7. Verify disposition badge recorded
-    await expect(page.getByText(/CONFIRMED_ABUSE/i)).toBeVisible();
+    await expect(page.getByText(/CONFIRMED_ABUSE/i).first()).toBeVisible();
 
     // 8. Refresh page to verify persistence
     await page.reload();
-    await page.getByRole('button', { name: /Incidents/i }).click();
+    await page.getByRole('button', { name: /^Incident Triage/i }).click();
     const incidentItem = page.getByText(/inc_/i).first();
     await expect(incidentItem).toBeVisible();
     await incidentItem.click();
-    await expect(page.getByText(/CONFIRMED_ABUSE/i)).toBeVisible();
+    await expect(page.getByText(/CONFIRMED_ABUSE/i).first()).toBeVisible();
 
     // 9. Navigate to Benchmark Evals tab
-    await page.getByRole('button', { name: /Benchmark Evals/i }).click();
+    await page.getByRole('button', { name: /^Benchmark Evals/i }).click();
     await expect(page.getByText(/Reproducible Benchmark Evaluations/i)).toBeVisible();
   });
 });
