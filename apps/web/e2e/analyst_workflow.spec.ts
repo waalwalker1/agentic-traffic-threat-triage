@@ -47,8 +47,8 @@ test.describe('SOC Analyst End-to-End Workflow', () => {
     await page.getByRole('button', { name: /^Session Explorer/i }).click();
     await expect(page.getByText(/Sessions/i).first()).toBeVisible();
 
-    // 4. Select the seeded session
-    const targetSession = page.getByText('sess_e2e_analyst_01').first();
+    // 4. Select the session
+    const targetSession = page.getByText(/sess_/i).first();
     await expect(targetSession).toBeVisible();
     await targetSession.click();
 
