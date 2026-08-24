@@ -21,11 +21,13 @@ export default defineConfig({
     {
       command: 'uv run uvicorn apps.api.main:app --port 8000',
       port: 8000,
+      timeout: 120000,
       reuseExistingServer: !process.env.CI,
     },
     {
       command: 'npm run dev',
       port: 3000,
+      timeout: 120000,
       reuseExistingServer: !process.env.CI,
     },
   ],

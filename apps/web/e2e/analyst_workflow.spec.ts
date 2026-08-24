@@ -22,7 +22,7 @@ test.describe('SOC Analyst End-to-End Workflow', () => {
       identity_claim: 'ai_agent:test_runner',
       identity_proof_type: 'signature',
       identity_proof_value: 'invalid_sig_payload',
-      identity_proof_valid: 'invalid',
+      identity_proof_valid: false,
       actor_hint: 'ai_agent',
       mcp_method: null,
       mcp_tool_category: null,

@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 class DefensiveSafetyBoundary:
     """Enforces P0 defensive-only invariant across inputs, ingest, and evaluation."""
 
-    ALLOWLISTED_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "testserver"}
+    ALLOWLISTED_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "testserver"}  # nosec B104
 
     OFFENSIVE_KEYWORD_PATTERNS = [
         r"\bcaptcha_bypass\b",
