@@ -12,7 +12,7 @@
 ## Training & Validation Setup
 - **Dataset**: Synthetic Traffic Corpus v1.0.0 (3,623 events, 150 sessions across 30 scenario families)
 - **Dataset SHA-256**: `523f9d8d813dd49f05c73543bc83afe8ef9f494a47d1a9110ee2a27e0116cbdb`
-- **Trained At**: `2026-08-24T10:24:50.778076+00:00`
+- **Trained At**: `2026-08-25T09:10:00.455238+00:00`
 - **Splits**: Group-aware split by session instance (Train: 90 sessions, Val: 30 sessions, Test: 30 sessions)
 - **PyTorch Architecture**: Input (32 dims) -> Linear(64) -> LayerNorm(64) -> ReLU() -> Dropout(0.2) -> Linear(32) -> LayerNorm(32) -> ReLU() -> Dropout(0.2) -> Linear(1) -> Sigmoid()
 

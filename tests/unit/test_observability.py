@@ -96,40 +96,45 @@ def test_opentelemetry_pipeline_instrumentation():
     )
 
     sessionizer = TelemetrySessionizer()
-    session = sessionizer.process_event(event)
+    sessions = sessionizer.sessionize([event])
+    session = sessions[0]
     assert session is not None
 
     extractor = FeatureExtractor()
-    features = extractor.extract(session)
+    features = extractor.extract_features(session.events, session.session_id)
     assert features is not None
 
     evaluator = IdentityEvaluator()
-    id_ev = evaluator.evaluate(session)
+    id_ev = evaluator.evaluate_session_identity(session.events)
     assert id_ev is not None
 
     mcp_analyzer = MCPSequenceAnalyzer()
-    mcp_ev = mcp_analyzer.analyze(session)
+    mcp_ev = mcp_analyzer.analyze_session(session.events)
     assert mcp_ev is not None
+
+    collector = EvidenceCollector()
+    ev_items = collector.collect_evidence(
+        session.session_id, features, session.events, id_ev, mcp_ev
+    )
+    assert len(ev_items) > 0
 
     policy = RiskPolicy()
     fusion_det = policy.fuse_scores(
         session_id=session.session_id,
+        fv=features,
         rules_score=0.2,
         supervised_score=0.1,
         anomaly_score=0.0,
         pytorch_score=0.1,
-        calibrated_probability=0.15,
-        identity_evidence=id_ev,
-        mcp_evidence=mcp_ev,
+        reason_codes=[],
+        evidence_ids=[e.evidence_id for e in ev_items],
     )
     assert fusion_det is not None
 
-    collector = EvidenceCollector()
-    bundle = collector.collect(
+    bundle = collector.build_bundle(
         session_id=session.session_id,
-        features=features,
-        identity_evidence=id_ev,
-        mcp_evidence=mcp_ev,
         detection_result=fusion_det,
+        evidence_items=ev_items,
+        events=session.events,
     )
     assert bundle is not None

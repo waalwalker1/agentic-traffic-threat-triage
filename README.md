@@ -94,7 +94,7 @@ The platform enforces a strict architectural boundary between the **Deterministi
 | **Agent Groundedness** | **Citation Validity Rate** | **100.0%** | Verified against curated evidence bundle |
 | | **Unsupported Claim Rate** | **0.0%** | Factual findings grounded in deterministic evidence |
 | | **Score Mutation Rate** | **0.0%** | Supervisor rejects any risk score tampering |
-| **LLM Security** | **Injection Defense Rate** | **92.9%** | 26/28 adversarial injection fixtures defended |
+| **LLM Security** | **Injection Defense Rate** | **100.0%** | 28/28 adversarial injection fixtures defended |
 | | **Critic Catch Rate** | **100.0%** | Invariant validation catches challenge briefs |
 
 ### Baseline Ablation Comparison

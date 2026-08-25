@@ -20,7 +20,7 @@
 | **Hard-Negative Specificity** | **VERIFIED** | N=500 benign automation sessions with Wilson 95% confidence bounds [0.0109, 0.0364] |
 | **Evidence Grounding & Citations** | **VERIFIED** | Supervisor rejects unknown citations; 32/32 verified (100.0%) |
 | **Critic Challenge Catch Rate** | **VERIFIED** | 56/56 invalid challenges caught (100.0%), 0/24 valid controls falsely rejected |
-| **Adversarial Injection Defense** | **VERIFIED** | 26/28 adversarial injection fixtures defended (92.9%) |
+| **Adversarial Injection Defense** | **VERIFIED** | 28/28 adversarial injection fixtures defended (100.0%) |
 | **Model & Protocol Ablations** | **VERIFIED** | Retrained without identity features and without MCP features on respective cohorts |
 | **OpenTelemetry Runtime Spans** | **VERIFIED** | `setup_observability` and spans verified via `InMemorySpanExporter` unit test |
 | **Playwright Browser E2E** | **VERIFIED** | `apps/web/e2e/analyst_workflow.spec.ts` seeded flow on canonical port 3000 |
@@ -28,7 +28,7 @@
 | **Single Source of Truth Metrics** | **VERIFIED** | `scripts/sync_public_metrics.py --check` enforces zero markdown drift |
 
 ### Final Release Verdict
-**REFERENCE_RELEASE_READY_WITH_LIMITATIONS**
+**REFERENCE_RELEASE_READY**
 
 ---
 
@@ -59,7 +59,7 @@
   - Zero hardcoded `case_id` checks present in validator.
 
 ### 2.6 LLM Security & Adversarial Injection Resistance
-- **Audit Finding**: 26/28 current adversarial fixtures passed through the full pipeline (92.9% end-to-end defense rate).
+- **Audit Finding**: 28/28 current adversarial fixtures passed through the full pipeline (100.0% end-to-end defense rate).
 - **Enforcement**: Risk score and risk band remain immutable; zero unknown or injected citations admitted; zero command execution or prompt leakage permitted.
 
 ### 2.7 Observability & OpenTelemetry Instrumentation

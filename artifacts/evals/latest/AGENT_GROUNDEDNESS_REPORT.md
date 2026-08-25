@@ -7,8 +7,8 @@
 | Total Evidence Citations | 32 |
 | Valid Evidence Citations | 32 |
 | Citation Validity Rate | 100.0% |
-| Total Factual Claims | 60 |
-| Supported Factual Claims | 60 |
+| Total Factual Claims | 73 |
+| Supported Factual Claims | 73 |
 | Unsupported Claim Rate | 0.0% |
 | Total Numeric Claims | 5 |
 | Numeric Claim Accuracy | 100.0% |

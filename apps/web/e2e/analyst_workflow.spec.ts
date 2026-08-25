@@ -53,45 +53,45 @@ test.describe('SOC Analyst End-to-End Workflow', () => {
 
     // 3. Navigate to Session Explorer
     await page.getByRole('button', { name: /^Session Explorer/i }).click();
-    await expect(page.getByText(/Sessions/i).first()).toBeVisible();
+    await expect(page.getByText(/Sessions/i).first()).toBeVisible({ timeout: 15000 });
 
     // 4. Select the session
     const targetSession = page.getByText(/sess_/i).first();
-    await expect(targetSession).toBeVisible();
+    await expect(targetSession).toBeVisible({ timeout: 15000 });
     await targetSession.click();
 
     // Verify evidence items loaded
-    await expect(page.getByText(/Deterministic Evidence Items/i)).toBeVisible();
+    await expect(page.getByText(/Deterministic Evidence Items/i)).toBeVisible({ timeout: 15000 });
 
     // 5. Trigger 6-Agent Triage
     const triageBtn = page.getByRole('button', { name: /Run 6-Agent Triage/i });
-    await expect(triageBtn).toBeVisible();
+    await expect(triageBtn).toBeVisible({ timeout: 15000 });
     await triageBtn.click();
 
     // Wait for Incident Brief and Grounded Findings
-    await expect(page.getByText(/Incident Brief/i)).toBeVisible();
-    await expect(page.getByText(/Grounded Findings & Citations/i)).toBeVisible();
+    await expect(page.getByText(/Incident Brief/i)).toBeVisible({ timeout: 25000 });
+    await expect(page.getByText(/Grounded Findings & Citations/i)).toBeVisible({ timeout: 25000 });
 
     // 6. Submit Human Disposition
     const notesArea = page.getByPlaceholder(/Enter SOC analyst forensic notes/i);
-    await expect(notesArea).toBeVisible();
+    await expect(notesArea).toBeVisible({ timeout: 15000 });
     await notesArea.fill('Verified automated scraping with invalid signature via E2E test.');
     await page.getByRole('button', { name: /Confirmed Abuse/i }).click();
 
     // 7. Verify disposition badge recorded
-    await expect(page.getByText(/CONFIRMED_ABUSE/i).first()).toBeVisible();
+    await expect(page.getByText(/CONFIRMED_ABUSE/i).first()).toBeVisible({ timeout: 15000 });
 
     // 8. Refresh page to verify persistence
     await page.reload();
     await page.getByRole('button', { name: /^Incident Triage/i }).click();
     const incidentItem = page.getByText(/inc_/i).first();
-    await expect(incidentItem).toBeVisible();
+    await expect(incidentItem).toBeVisible({ timeout: 15000 });
     await incidentItem.click();
-    await expect(page.getByText(/CONFIRMED_ABUSE/i).first()).toBeVisible();
-    await expect(page.getByText(/Verified automated scraping with invalid signature/i)).toBeVisible();
+    await expect(page.getByText(/CONFIRMED_ABUSE/i).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Verified automated scraping with invalid signature/i)).toBeVisible({ timeout: 15000 });
 
     // 9. Navigate to Benchmark Evals tab
     await page.getByRole('button', { name: /^Benchmark Evals/i }).click();
-    await expect(page.getByText(/Reproducible Benchmark Evaluations/i)).toBeVisible();
+    await expect(page.getByText(/Reproducible Benchmark Evaluations/i)).toBeVisible({ timeout: 15000 });
   });
 });

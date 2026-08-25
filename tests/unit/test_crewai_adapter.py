@@ -88,12 +88,14 @@ def test_crewai_adapter_build_crew_structure_mocked():
     mock_agent_cls = MagicMock()
     mock_task_cls = MagicMock()
     mock_crew_cls = MagicMock()
+    mock_process = MagicMock()
 
     with (
         patch("src.traffic_triage.agents.orchestrators.crewai_adapter.CREWAI_AVAILABLE", True),
         patch("src.traffic_triage.agents.orchestrators.crewai_adapter.Agent", mock_agent_cls),
         patch("src.traffic_triage.agents.orchestrators.crewai_adapter.Task", mock_task_cls),
         patch("src.traffic_triage.agents.orchestrators.crewai_adapter.Crew", mock_crew_cls),
+        patch("src.traffic_triage.agents.orchestrators.crewai_adapter.Process", mock_process),
     ):
         crew = adapter.build_crewai_crew(bundle)
         assert mock_agent_cls.call_count == 5

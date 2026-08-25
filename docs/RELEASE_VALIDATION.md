@@ -36,9 +36,9 @@
 
 ## 4. Agent Groundedness & LLM Security
 - **Evidence Citation Validity Rate**: 100.0% (32/32 verified against bundle)
-- **Unsupported Claim Rate**: 0.0% (60/60 factual findings grounded in evidence)
+- **Unsupported Claim Rate**: 0.0% (73/73 factual findings grounded in evidence)
 - **Risk Score Mutation Rate**: 0.0% (Zero score mutations permitted)
-- **Prompt Injection Defense Pass Rate**: 92.9% (26/28 fixtures defended)
+- **Prompt Injection Defense Pass Rate**: 100.0% (28/28 fixtures defended)
 - **Critic Challenge Catch Rate**: 100.0% (56/56 caught, 0/24 false rejections)
 
 ## 5. Multi-Model Ablation Summary

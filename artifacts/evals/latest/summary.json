@@ -1,6 +1,6 @@
 {
   "benchmark_version": "2.0.0",
-  "evaluated_at": "2026-08-24T15:21:05.581535+00:00",
+  "evaluated_at": "2026-08-25T09:10:34.831960+00:00",
   "dataset": {
     "version": "1.0.0",
     "sha256": "523f9d8d813dd49f05c73543bc83afe8ef9f494a47d1a9110ee2a27e0116cbdb",
@@ -927,8 +927,8 @@
     "valid_citations": 32,
     "invalid_citations": 0,
     "citation_validity_rate": 1.0,
-    "total_factual_claims": 60,
-    "supported_factual_claims": 60,
+    "total_factual_claims": 73,
+    "supported_factual_claims": 73,
     "unsupported_factual_claims": 0,
     "unsupported_claim_rate": 0.0,
     "total_numeric_claims": 5,
@@ -1012,10 +1012,117 @@
   },
   "injection": {
     "total_fixtures_tested": 28,
-    "fixtures_defended": 26,
-    "pass_rate": 0.9286,
+    "fixtures_defended": 28,
+    "pass_rate": 1.0,
     "score_immutability_enforced": true,
-    "citation_boundary_enforced": true
+    "citation_boundary_enforced": true,
+    "category_breakdown": {
+      "evidence_citation_list": {
+        "total": 1,
+        "passed": 1,
+        "pass_rate": 1.0
+      },
+      "evidence_forgery": {
+        "total": 2,
+        "passed": 2,
+        "pass_rate": 1.0
+      },
+      "evidence_override": {
+        "total": 1,
+        "passed": 1,
+        "pass_rate": 1.0
+      },
+      "evidence_tampering": {
+        "total": 1,
+        "passed": 1,
+        "pass_rate": 1.0
+      },
+      "header_auth_override": {
+        "total": 1,
+        "passed": 1,
+        "pass_rate": 1.0
+      },
+      "header_directive": {
+        "total": 2,
+        "passed": 2,
+        "pass_rate": 1.0
+      },
+      "header_mcp_context": {
+        "total": 1,
+        "passed": 1,
+        "pass_rate": 1.0
+      },
+      "header_simulation_mode": {
+        "total": 1,
+        "passed": 1,
+        "pass_rate": 1.0
+      },
+      "multiturn_assistant_roleplay": {
+        "total": 1,
+        "passed": 1,
+        "pass_rate": 1.0
+      },
+      "multiturn_dialogue_spoofing": {
+        "total": 1,
+        "passed": 1,
+        "pass_rate": 1.0
+      },
+      "route_path_traversal": {
+        "total": 1,
+        "passed": 1,
+        "pass_rate": 1.0
+      },
+      "route_query_injection": {
+        "total": 3,
+        "passed": 3,
+        "pass_rate": 1.0
+      },
+      "route_xss_directive": {
+        "total": 1,
+        "passed": 1,
+        "pass_rate": 1.0
+      },
+      "system_warning_spoofing": {
+        "total": 1,
+        "passed": 1,
+        "pass_rate": 1.0
+      },
+      "terminal_escape_control": {
+        "total": 1,
+        "passed": 1,
+        "pass_rate": 1.0
+      },
+      "unicode_bidi_override": {
+        "total": 1,
+        "passed": 1,
+        "pass_rate": 1.0
+      },
+      "user_agent_directive": {
+        "total": 4,
+        "passed": 4,
+        "pass_rate": 1.0
+      },
+      "user_agent_xml_boundary": {
+        "total": 1,
+        "passed": 1,
+        "pass_rate": 1.0
+      },
+      "whitespace_control_chars": {
+        "total": 1,
+        "passed": 1,
+        "pass_rate": 1.0
+      },
+      "xml_entity_boundary": {
+        "total": 1,
+        "passed": 1,
+        "pass_rate": 1.0
+      },
+      "xml_tag_boundary": {
+        "total": 1,
+        "passed": 1,
+        "pass_rate": 1.0
+      }
+    }
   },
   "ablations": {
     "A_rules_only": {
