@@ -479,8 +479,15 @@ export function App() {
                         Record Human Analyst Disposition
                       </h4>
                       {incidentDetailQuery.data.analyst_disposition && (
-                        <div className="text-xs text-slate-400">
-                          Current: <strong className="text-sky-400">{incidentDetailQuery.data.analyst_disposition.disposition}</strong> (by {incidentDetailQuery.data.analyst_disposition.analyst_id})
+                        <div className="text-xs text-slate-400 space-y-1">
+                          <div>
+                            Current: <strong className="text-sky-400">{incidentDetailQuery.data.analyst_disposition.disposition}</strong> (by {incidentDetailQuery.data.analyst_disposition.analyst_id})
+                          </div>
+                          {incidentDetailQuery.data.analyst_disposition.notes && (
+                            <div className="text-slate-300 italic">
+                              &ldquo;{incidentDetailQuery.data.analyst_disposition.notes}&rdquo;
+                            </div>
+                          )}
                         </div>
                       )}
                       <textarea
