@@ -28,12 +28,16 @@ class DeterministicLocalProvider:
     ) -> T:
         ctx = prompt.user_context
 
-        # Extract available evidence IDs from prompt context
-        evidence_ids = re.findall(r"(E-[A-Z]+-[A-Za-z0-9_-]+)", ctx)
+        # Extract available evidence IDs from prompt context structured line headers
+        evidence_ids = re.findall(r"- ID:\s*(E-[A-Z]+-[A-Za-z0-9_-]+)", ctx)
+        if not evidence_ids:
+            evidence_ids = re.findall(r"(E-[A-Z]+-[A-Za-z0-9_-]+)", ctx)
         unique_ev_ids = sorted(set(evidence_ids))
 
         # Extract risk score if present in context
-        risk_match = re.search(r"risk_score[:=]\s*([0-9.]+)", ctx)
+        risk_match = re.search(
+            r"(?:Calibrated Risk Score|risk_score)[:=]\s*([0-9.]+)", ctx, re.IGNORECASE
+        )
         risk_score = float(risk_match.group(1)) if risk_match else 0.5
 
         # Extract numeric feature values and evidence IDs from context

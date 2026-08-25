@@ -4,8 +4,8 @@ import json
 import subprocess
 import sys
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 
 
 def wait_for_endpoint(url: str, timeout_sec: int = 45) -> bool:
@@ -31,7 +31,9 @@ def run_docker_smoke() -> None:
     except Exception as e:
         print(f"Docker daemon is not running: {e}")
         if allow_missing:
-            print("Validated Dockerfile and docker-compose.yml configuration syntax (--allow-missing-docker).")
+            print(
+                "Validated Dockerfile and docker-compose.yml configuration syntax (--allow-missing-docker)."
+            )
             return
         sys.exit(1)
 
@@ -146,6 +148,19 @@ def run_docker_smoke() -> None:
         with urllib.request.urlopen(req_disp) as resp:
             assert resp.status == 200
             print("Disposition recorded successfully!")
+
+        # 9b. Re-read Incident to verify saved disposition persistence
+        req_get_inc = urllib.request.Request(f"http://localhost:8000/api/v1/incidents/{inc_id}")
+        with urllib.request.urlopen(req_get_inc) as resp:
+            assert resp.status == 200
+            inc_data = json.loads(resp.read().decode("utf-8"))
+            disp = inc_data.get("analyst_disposition")
+            assert disp is not None, "Saved disposition was None on re-read!"
+            assert disp.get("disposition") == "CONFIRMED_ABUSE"
+            assert disp.get("notes") == "Docker smoke test pass."
+            print(
+                f"Verified incident disposition persistence on re-read: {disp.get('disposition')}"
+            )
 
         # 10. Check Prometheus Metrics
         req_metrics = urllib.request.Request("http://localhost:8000/metrics")

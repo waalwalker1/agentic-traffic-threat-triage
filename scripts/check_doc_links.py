@@ -1,13 +1,17 @@
 """Audits all markdown documentation in the repository to ensure all internal links and references resolve."""
 
-from pathlib import Path
 import re
 import sys
+from pathlib import Path
 
 
 def check_markdown_links() -> list[str]:
     repo_root = Path.cwd()
-    md_files = list(repo_root.glob("*.md")) + list(repo_root.glob("docs/**/*.md")) + list(repo_root.glob("evals/**/*.md"))
+    md_files = (
+        list(repo_root.glob("*.md"))
+        + list(repo_root.glob("docs/**/*.md"))
+        + list(repo_root.glob("evals/**/*.md"))
+    )
     broken_links: list[str] = []
 
     link_pattern = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
@@ -29,7 +33,9 @@ def check_markdown_links() -> list[str]:
             # Resolve path relative to current markdown file
             resolved_path = (md_path.parent / file_target).resolve()
             if not resolved_path.exists():
-                broken_links.append(f"{md_path.relative_to(repo_root)}: Broken link [{text}]({target}) -> {file_target}")
+                broken_links.append(
+                    f"{md_path.relative_to(repo_root)}: Broken link [{text}]({target}) -> {file_target}"
+                )
 
     return broken_links
 

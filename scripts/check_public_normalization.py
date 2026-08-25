@@ -1,11 +1,9 @@
 """Public repository normalization and residue audit script."""
 
-import os
 import re
 import subprocess
 import sys
 from pathlib import Path
-
 
 DISALLOWED_PATTERNS = [
     r"\brecruiter\b",
@@ -47,7 +45,18 @@ def audit_normalization() -> None:
         rel_path = str(path)
         if rel_path in ALLOWED_FILES or "BUILD_SPEC.md" in rel_path or ".build" in rel_path:
             continue
-        if path.suffix not in (".py", ".ts", ".tsx", ".md", ".json", ".html", ".yml", ".yaml", ".txt", ".toml"):
+        if path.suffix not in (
+            ".py",
+            ".ts",
+            ".tsx",
+            ".md",
+            ".json",
+            ".html",
+            ".yml",
+            ".yaml",
+            ".txt",
+            ".toml",
+        ):
             continue
 
         try:

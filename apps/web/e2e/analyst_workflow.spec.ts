@@ -2,6 +2,14 @@ import { test, expect } from '@playwright/test';
 
 test.describe('SOC Analyst End-to-End Workflow', () => {
   test('complete triage, inspection, disposition, and evaluation workflow', async ({ page, request }) => {
+    // -1. Verify model readiness before browser interaction
+    const readyRes = await request.get('http://127.0.0.1:8000/ready');
+    expect(readyRes.ok()).toBeTruthy();
+    const readyData = await readyRes.json();
+    expect(readyData.status).toBe('ready');
+    expect(readyData.model_mode).toBe('trained');
+    expect(readyData.models_loaded).toBe(true);
+
     // 0. Seed deterministic session data via API
     const seedEvent = {
       event_id: 'evt_e2e_001',
@@ -20,7 +28,7 @@ test.describe('SOC Analyst End-to-End Workflow', () => {
       content_type: 'application/json',
       has_auth_context: false,
       identity_claim: 'ai_agent:test_runner',
-      identity_proof_type: 'signature',
+      identity_proof_type: 'ed25519_signature',
       identity_proof_value: 'invalid_sig_payload',
       identity_proof_valid: false,
       actor_hint: 'ai_agent',
@@ -33,7 +41,7 @@ test.describe('SOC Analyst End-to-End Workflow', () => {
     const ingestRes = await request.post('http://127.0.0.1:8000/api/v1/ingest', {
       data: { events: [seedEvent] },
     });
-    expect(ingestRes.ok()).toBeTruthy();
+    expect(ingestRes.status()).toBe(200);
 
     // 1. Open analyst dashboard
     await page.goto('/');
@@ -80,6 +88,7 @@ test.describe('SOC Analyst End-to-End Workflow', () => {
     await expect(incidentItem).toBeVisible();
     await incidentItem.click();
     await expect(page.getByText(/CONFIRMED_ABUSE/i).first()).toBeVisible();
+    await expect(page.getByText(/Verified automated scraping with invalid signature/i)).toBeVisible();
 
     // 9. Navigate to Benchmark Evals tab
     await page.getByRole('button', { name: /^Benchmark Evals/i }).click();

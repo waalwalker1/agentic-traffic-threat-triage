@@ -22,44 +22,53 @@ export function App() {
 
   const queryClient = useQueryClient();
 
+  async function apiFetch<T = any>(url: string, options?: RequestInit): Promise<T> {
+    const res = await fetch(url, options);
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'Unknown network error');
+      throw new Error(`API ${res.status}: ${errText}`);
+    }
+    return res.json();
+  }
+
   // Queries
   const readyQuery = useQuery({
     queryKey: ['ready'],
-    queryFn: () => fetch(`${API_BASE}/ready`).then((r) => r.json()),
+    queryFn: () => apiFetch(`${API_BASE}/ready`),
     refetchInterval: 10000,
   });
 
   const sessionsQuery = useQuery({
     queryKey: ['sessions'],
-    queryFn: () => fetch(`${API_BASE}/api/v1/sessions?limit=50`).then((r) => r.json()),
+    queryFn: () => apiFetch(`${API_BASE}/api/v1/sessions?limit=50`),
   });
 
   const sessionDetailQuery = useQuery({
     queryKey: ['session', selectedSessionId],
-    queryFn: () => fetch(`${API_BASE}/api/v1/sessions/${selectedSessionId}`).then((r) => r.json()),
+    queryFn: () => apiFetch(`${API_BASE}/api/v1/sessions/${selectedSessionId}`),
     enabled: !!selectedSessionId,
   });
 
   const incidentsQuery = useQuery({
     queryKey: ['incidents'],
-    queryFn: () => fetch(`${API_BASE}/api/v1/incidents?limit=50`).then((r) => r.json()),
+    queryFn: () => apiFetch(`${API_BASE}/api/v1/incidents?limit=50`),
   });
 
   const incidentDetailQuery = useQuery({
     queryKey: ['incident', selectedIncidentId],
-    queryFn: () => fetch(`${API_BASE}/api/v1/incidents/${selectedIncidentId}`).then((r) => r.json()),
+    queryFn: () => apiFetch(`${API_BASE}/api/v1/incidents/${selectedIncidentId}`),
     enabled: !!selectedIncidentId,
   });
 
   const evalsQuery = useQuery({
     queryKey: ['evals'],
-    queryFn: () => fetch(`${API_BASE}/api/v1/evals/latest`).then((r) => r.json()),
+    queryFn: () => apiFetch(`${API_BASE}/api/v1/evals/latest`),
   });
 
   // Mutations
   const triageMutation = useMutation({
     mutationFn: (sessionId: string) =>
-      fetch(`${API_BASE}/api/v1/sessions/${sessionId}/triage`, { method: 'POST' }).then((r) => r.json()),
+      apiFetch(`${API_BASE}/api/v1/sessions/${sessionId}/triage`, { method: 'POST' }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['incidents'] });
       setSelectedIncidentId(data.incident_id);
@@ -69,11 +78,11 @@ export function App() {
 
   const dispositionMutation = useMutation({
     mutationFn: ({ incidentId, disposition, notes }: { incidentId: string; disposition: string; notes: string }) =>
-      fetch(`${API_BASE}/api/v1/incidents/${incidentId}/disposition`, {
+      apiFetch(`${API_BASE}/api/v1/incidents/${incidentId}/disposition`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ disposition, notes }),
-      }).then((r) => r.json()),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['incidents'] });
       queryClient.invalidateQueries({ queryKey: ['incident', selectedIncidentId] });
@@ -93,7 +102,7 @@ export function App() {
             <h1 className="text-base font-bold text-white tracking-wide flex items-center gap-2">
               Agentic Traffic Threat Triage
               <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono font-normal">
-                v0.1.0-remediated
+                v0.1.0
               </span>
             </h1>
             <p className="text-xs text-slate-400">
@@ -107,13 +116,21 @@ export function App() {
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-slate-900 border border-slate-800">
             <span
               className={`w-2 h-2 rounded-full ${
-                readyQuery.data?.models_loaded ? 'bg-emerald-400' : 'bg-amber-400'
+                readyQuery.isLoading
+                  ? 'bg-amber-400 animate-pulse'
+                  : readyQuery.data?.models_loaded
+                  ? 'bg-emerald-400'
+                  : 'bg-rose-400'
               }`}
             />
             <span className="text-slate-300">
               Models:{' '}
               <strong className="text-white">
-                {readyQuery.data?.models_loaded ? 'Loaded (Trained Bundle)' : 'Loading / Demo'}
+                {readyQuery.isLoading
+                  ? 'Loading...'
+                  : readyQuery.data?.models_loaded
+                  ? 'Loaded (Trained Bundle)'
+                  : 'Not Ready'}
               </strong>
             </span>
           </div>
@@ -238,17 +255,17 @@ export function App() {
                 <div className="p-5 bg-slate-900/60 border border-slate-800 rounded-xl">
                   <div className="text-xs font-medium text-slate-400 uppercase">Model Runtime Mode</div>
                   <div className="mt-2 text-2xl font-bold text-emerald-400">
-                    {readyQuery.data?.model_mode || 'trained'}
+                    {readyQuery.isLoading ? 'Loading...' : (readyQuery.data?.model_mode || 'Unavailable')}
                   </div>
                   <div className="mt-1 text-xs text-slate-500">
-                    Bundle: {readyQuery.data?.bundle_version || '1.0.0'}
+                    Bundle: {readyQuery.isLoading ? 'Loading...' : (readyQuery.data?.bundle_version || 'Unavailable')}
                   </div>
                 </div>
 
                 <div className="p-5 bg-slate-900/60 border border-slate-800 rounded-xl">
                   <div className="text-xs font-medium text-slate-400 uppercase">Risk Policy Fusion</div>
                   <div className="mt-2 text-2xl font-bold text-purple-400">
-                    {readyQuery.data?.risk_policy_version || '2026.1.0'}
+                    {readyQuery.isLoading ? 'Loading...' : (readyQuery.data?.risk_policy_version || 'Unavailable')}
                   </div>
                   <div className="mt-1 text-xs text-slate-500">Deterministic Hard Overrides</div>
                 </div>

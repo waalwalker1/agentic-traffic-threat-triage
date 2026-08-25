@@ -2,7 +2,6 @@
 
 import json
 from pathlib import Path
-import sys
 
 
 def generate_model_card() -> None:

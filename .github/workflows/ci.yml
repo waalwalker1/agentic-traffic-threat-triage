@@ -75,14 +75,8 @@ jobs:
           uv run python -m tools.synthetic_traffic.generator --seed 42 --output-dir data/fixtures --sample-dir data/samples
           uv run python -m src.traffic_triage.detection.train --data-dir data/fixtures --output-dir artifacts/model_cards
 
-      - name: Run Unit Tests
-        run: uv run pytest tests/unit --cov=src --cov-report=term-missing
-
-      - name: Run Protocol & Security Tests
-        run: uv run pytest tests/protocol tests/security
-
-      - name: Run Integration Tests
-        run: uv run pytest tests/integration
+      - name: Run Unit, Protocol, Security & Integration Tests with Coverage
+        run: uv run pytest tests/unit tests/protocol tests/security tests/integration --cov=src/traffic_triage --cov-branch --cov-report=term-missing --cov-report=xml --cov-fail-under=80
 
   benchmark-and-calibration:
     name: Benchmark Evaluations & Calibration
@@ -124,8 +118,10 @@ jobs:
           test -f artifacts/evals/latest/ABLATION_REPORT.md
           test -f docs/MODEL_CARD.md
 
-      - name: Check Public Metrics Synchronization
-        run: uv run python scripts/sync_public_metrics.py --check
+      - name: Check Public Metrics & Security Audit Synchronization
+        run: |
+          uv run python scripts/sync_public_metrics.py --check
+          uv run python scripts/generate_security_release_audit.py --check
 
   frontend-quality:
     name: Frontend Quality & Tests
@@ -252,13 +248,21 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
           version: "latest"
 
       - name: Install dependencies
-        run: uv sync --extra dev --extra cloud
+        run: |
+          uv sync --extra dev --extra cloud
+          npm ci
 
       - name: Check Defensive Boundary
         run: uv run python scripts/check_defensive_boundary.py
@@ -272,6 +276,34 @@ jobs:
       - name: Python Static Security Analysis (Bandit)
         run: uv run bandit -r src/ -ll
 
+      - name: Python Dependency Vulnerability Audit (pip-audit)
+        run: uv run pip-audit
+
+      - name: Node Dependency Vulnerability Audit (npm audit)
+        run: npm audit --audit-level=high
+
+      - name: Secret Scanning (detect-secrets)
+        run: uv run detect-secrets scan --baseline .secrets.baseline
+
       - name: Verify No Private Files Committed
         run: |
           ! git ls-files | grep -E '^BUILD_SPEC\.md$|^\.build/|\.bak$|credentials\.json'
+
+  release-gate:
+    name: Release Gate & Repository Freeze
+    runs-on: ubuntu-latest
+    needs:
+      - lint-and-typecheck
+      - unit-and-integration-tests
+      - benchmark-and-calibration
+      - frontend-quality
+      - playwright-e2e
+      - docker-build-and-smoke
+      - security-and-hygiene
+    steps:
+      - name: Confirm Release Readiness
+        run: |
+          echo "=========================================="
+          echo "ALL MANDATORY RELEASE GATES PASSED (GREEN)"
+          echo "VERDICT: REFERENCE_RELEASE_READY"
+          echo "=========================================="

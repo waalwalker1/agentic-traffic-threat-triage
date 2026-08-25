@@ -3,7 +3,7 @@
 import asyncio
 import time
 import traceback
-from typing import Callable
+from collections.abc import Callable
 
 
 def run_sync_test(name: str, fn: Callable) -> bool:
@@ -40,34 +40,73 @@ async def main() -> None:
     # 1. Dataset Leakage
     print("\n--- 1. Unit Tests (Dataset Leakage & Scenario Profiles) ---")
     from tests.unit import test_dataset_leakage
+
     unit_leakage = [
-        ("test_ground_truth_and_scenario_id_excluded_from_features", test_dataset_leakage.test_ground_truth_and_scenario_id_excluded_from_features),
-        ("test_every_scenario_family_has_explicit_behavior_profile", test_dataset_leakage.test_every_scenario_family_has_explicit_behavior_profile),
-        ("test_unknown_scenario_raises_exception", test_dataset_leakage.test_unknown_scenario_raises_exception),
-        ("test_feature_extractor_invariance_to_synthetic_metadata", test_dataset_leakage.test_feature_extractor_invariance_to_synthetic_metadata),
+        (
+            "test_ground_truth_and_scenario_id_excluded_from_features",
+            test_dataset_leakage.test_ground_truth_and_scenario_id_excluded_from_features,
+        ),
+        (
+            "test_every_scenario_family_has_explicit_behavior_profile",
+            test_dataset_leakage.test_every_scenario_family_has_explicit_behavior_profile,
+        ),
+        (
+            "test_unknown_scenario_raises_exception",
+            test_dataset_leakage.test_unknown_scenario_raises_exception,
+        ),
+        (
+            "test_feature_extractor_invariance_to_synthetic_metadata",
+            test_dataset_leakage.test_feature_extractor_invariance_to_synthetic_metadata,
+        ),
     ]
     for name, fn in unit_leakage:
         total += 1
         if run_sync_test(name, fn):
             passed += 1
 
-    # 2. CrewAI Adapter
-    print("\n--- 2. Unit Tests (CrewAI Orchestration Adapter) ---")
-    from tests.unit import test_crewai_adapter
-    crew_tests = [
-        ("test_crewai_adapter_deterministic_fallback", test_crewai_adapter.test_crewai_adapter_deterministic_fallback),
-        ("test_crewai_adapter_executes_all_roles", test_crewai_adapter.test_crewai_adapter_executes_all_roles),
+    # 2. CrewAI Adapter & Observability
+    print("\n--- 2. Unit Tests (CrewAI Orchestration & Observability) ---")
+    from tests.unit import test_crewai_adapter, test_observability
+
+    crew_async_tests = [
+        (
+            "test_crewai_adapter_contract_and_native_parity",
+            test_crewai_adapter.test_crewai_adapter_contract_and_native_parity,
+        ),
+        (
+            "test_opentelemetry_triage_spans_in_memory",
+            test_observability.test_opentelemetry_triage_spans_in_memory,
+        ),
     ]
-    for name, fn in crew_tests:
+    for name, fn in crew_async_tests:
         total += 1
         if await run_async_test(name, fn):
+            passed += 1
+
+    unit_sync_tests = [
+        (
+            "test_crewai_adapter_build_crew_structure_mocked",
+            test_crewai_adapter.test_crewai_adapter_build_crew_structure_mocked,
+        ),
+        (
+            "test_opentelemetry_pipeline_instrumentation",
+            test_observability.test_opentelemetry_pipeline_instrumentation,
+        ),
+    ]
+    for name, fn in unit_sync_tests:
+        total += 1
+        if run_sync_test(name, fn):
             passed += 1
 
     # 3. Protocol: Cloud Providers
     print("\n--- 3. Protocol & Cloud Adapter Tests ---")
     from tests.protocol import test_cloud_providers
+
     proto_tests = [
-        ("test_vertex_provider_contract_mocked", test_cloud_providers.test_vertex_provider_contract_mocked),
+        (
+            "test_vertex_provider_contract_mocked",
+            test_cloud_providers.test_vertex_provider_contract_mocked,
+        ),
         ("test_bedrock_provider_contract", test_cloud_providers.test_bedrock_provider_contract),
     ]
     for name, fn in proto_tests:
@@ -81,14 +120,29 @@ async def main() -> None:
 
     # 4. Security: Prompt Injection & Critic Challenges
     print("\n--- 4. Security & Boundary Defense Tests ---")
-    from tests.security import test_prompt_injection, test_critic_challenges
+    from tests.security import test_critic_challenges, test_prompt_injection
+
     sec_sync_tests = [
-        ("test_telemetry_sanitizer_escapes_xml_and_strips_control_chars", test_prompt_injection.test_telemetry_sanitizer_escapes_xml_and_strips_control_chars),
-        ("test_output_validator_rejects_hallucinated_evidence_id", test_prompt_injection.test_output_validator_rejects_hallucinated_evidence_id),
-        ("test_output_validator_rejects_score_mutation", test_prompt_injection.test_output_validator_rejects_score_mutation),
-        ("test_output_validator_rejects_band_mutation", test_prompt_injection.test_output_validator_rejects_band_mutation),
-        ("test_critic_catches_at_least_90_percent_of_challenges", test_critic_challenges.test_critic_catches_at_least_90_percent_of_challenges),
-        ("test_critic_zero_false_rejections_on_controls", test_critic_challenges.test_critic_zero_false_rejections_on_controls),
+        (
+            "test_telemetry_sanitizer_escapes_xml_and_strips_control_chars",
+            test_prompt_injection.test_telemetry_sanitizer_escapes_xml_and_strips_control_chars,
+        ),
+        (
+            "test_validator_rejects_risk_score_mutation",
+            test_prompt_injection.test_validator_rejects_risk_score_mutation,
+        ),
+        (
+            "test_validator_rejects_unknown_evidence_citations",
+            test_prompt_injection.test_validator_rejects_unknown_evidence_citations,
+        ),
+        (
+            "test_critic_catches_at_least_90_percent_of_challenges",
+            test_critic_challenges.test_critic_catches_at_least_90_percent_of_challenges,
+        ),
+        (
+            "test_critic_zero_false_rejections_on_controls",
+            test_critic_challenges.test_critic_zero_false_rejections_on_controls,
+        ),
     ]
     for name, fn in sec_sync_tests:
         total += 1
@@ -96,8 +150,10 @@ async def main() -> None:
             passed += 1
 
     sec_async_tests = [
-        ("test_supervisor_never_mutates_deterministic_score_under_injection", test_prompt_injection.test_supervisor_never_mutates_deterministic_score_under_injection),
-        ("test_supervisor_rejects_all_28_adversarial_injection_fixtures", test_prompt_injection.test_supervisor_rejects_all_28_adversarial_injection_fixtures),
+        (
+            "test_supervisor_immune_to_all_28_injected_fixtures",
+            test_prompt_injection.test_supervisor_immune_to_all_28_injected_fixtures,
+        ),
     ]
     for name, fn in sec_async_tests:
         total += 1
@@ -106,23 +162,46 @@ async def main() -> None:
 
     # 5. Integration: Model Bundle, Parity, DuckDB
     print("\n--- 5. Integration & Persistence Tests ---")
-    from tests.integration import test_model_bundle_runtime, test_runtime_benchmark_parity, test_duckdb_restart
+    from tests.integration import (
+        test_duckdb_restart,
+        test_model_bundle_runtime,
+        test_runtime_benchmark_parity,
+    )
+
     integ_sync_tests = [
-        ("test_model_bundle_manifest_verification", test_model_bundle_runtime.test_model_bundle_manifest_verification),
-        ("test_model_bundle_corrupt_sha256_fails_safe", test_model_bundle_runtime.test_model_bundle_corrupt_sha256_fails_safe),
-        ("test_model_bundle_missing_file_fails_safe", test_model_bundle_runtime.test_model_bundle_missing_file_fails_safe),
-        ("test_model_bundle_inference_reproducibility", test_model_bundle_runtime.test_model_bundle_inference_reproducibility),
-        ("test_eval_pipeline_and_fastapi_produce_identical_scores", test_runtime_benchmark_parity.test_eval_pipeline_and_fastapi_produce_identical_scores),
-        ("test_duckdb_persistence_across_reconnect", test_duckdb_restart.test_duckdb_persistence_across_reconnect),
+        (
+            "test_model_bundle_manifest_verification",
+            test_model_bundle_runtime.test_model_bundle_manifest_verification,
+        ),
+        (
+            "test_model_bundle_corrupt_sha256_fails_safe",
+            test_model_bundle_runtime.test_model_bundle_corrupt_sha256_fails_safe,
+        ),
+        (
+            "test_model_bundle_missing_file_fails_safe",
+            test_model_bundle_runtime.test_model_bundle_missing_file_fails_safe,
+        ),
+        (
+            "test_model_bundle_inference_reproducibility",
+            test_model_bundle_runtime.test_model_bundle_inference_reproducibility,
+        ),
+        (
+            "test_eval_pipeline_and_fastapi_produce_identical_scores",
+            test_runtime_benchmark_parity.test_eval_pipeline_and_fastapi_produce_identical_scores,
+        ),
+        (
+            "test_duckdb_persistence_across_reconnect",
+            test_duckdb_restart.test_duckdb_persistence_across_reconnect,
+        ),
     ]
     for name, fn in integ_sync_tests:
         total += 1
         if run_sync_test(name, fn):
             passed += 1
 
-    print(f"\n==========================================")
+    print("\n==========================================")
     print(f"TEST RESULTS: {passed}/{total} PASSED (100% pass rate: {passed == total})")
-    print(f"==========================================")
+    print("==========================================")
     if passed != total:
         exit(1)
 

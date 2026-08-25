@@ -1,5 +1,7 @@
 """Unit and contract tests for the CrewAI orchestration adapter."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from src.traffic_triage.agents.orchestrators.crewai_adapter import CrewAIAdapter
@@ -59,3 +61,42 @@ async def test_crewai_adapter_contract_and_native_parity():
     assert id_out.identity_assessment == n_id.identity_assessment
     assert intent_out.primary_hypothesis_name == n_intent.primary_hypothesis_name
     assert synth_out.key_findings == n_synth.key_findings
+
+
+def test_crewai_adapter_build_crew_structure_mocked():
+    """Validates that build_crewai_crew instantiates genuine Agent, Task, and Crew primitives."""
+    adapter = CrewAIAdapter()
+    bundle = CuratedEvidenceBundle(
+        session_id="sess_crew_mock",
+        risk_score=0.75,
+        risk_band="HIGH",
+        detector_scores={"rules": 0.75},
+        model_versions={"rules": "1.0"},
+        evidence_items=[
+            EvidenceItem(
+                evidence_id="E-VOL-01",
+                session_id="sess_crew_mock",
+                kind="volumetric",
+                feature_name="requests_per_second",
+                observed_value=25.0,
+                expected_range_or_context="< 5.0 rps",
+                human_readable_explanation="Elevated rate",
+            )
+        ],
+    )
+
+    mock_agent_cls = MagicMock()
+    mock_task_cls = MagicMock()
+    mock_crew_cls = MagicMock()
+
+    with (
+        patch("src.traffic_triage.agents.orchestrators.crewai_adapter.CREWAI_AVAILABLE", True),
+        patch("src.traffic_triage.agents.orchestrators.crewai_adapter.Agent", mock_agent_cls),
+        patch("src.traffic_triage.agents.orchestrators.crewai_adapter.Task", mock_task_cls),
+        patch("src.traffic_triage.agents.orchestrators.crewai_adapter.Crew", mock_crew_cls),
+    ):
+        crew = adapter.build_crewai_crew(bundle)
+        assert mock_agent_cls.call_count == 5
+        assert mock_task_cls.call_count == 5
+        assert mock_crew_cls.call_count == 1
+        assert crew is not None
